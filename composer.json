@@ -1,4 +1,15 @@
 {
+  "name": "letsdank/swissphp",
+  "description": "A PHP port of Swiss Ephemeris with astronomical calculations and PHPUnit coverage.",
+  "type": "library",
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "astronomy",
+    "astrology",
+    "ephemeris",
+    "swiss-ephemeris",
+    "php"
+  ],
   "autoload": {
     "psr-4": {
       "SwissEph\\": "src/"
