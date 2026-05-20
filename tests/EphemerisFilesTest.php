@@ -457,6 +457,59 @@ final class EphemerisFilesTest extends TestCase
         self::assertEqualsWithDelta(-0.000825794577203404, $result['vector'][5], 1e-15);
     }
 
+    public function testMercuryReferenceEllipseSegmentVectorCanBeEvaluated(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $result = EphemerisFiles::referenceEllipseSegmentVector($resolved['path'], Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertTrue($result['referenceEllipseApplied']);
+        self::assertEqualsWithDelta(1.3709957733842, $result['omtild'], 1e-13);
+
+        self::assertEqualsWithDelta(-0.12036989440703798, $result['vector'][0], 1e-15);
+        self::assertEqualsWithDelta(-0.45067363427770624, $result['vector'][1], 1e-15);
+        self::assertEqualsWithDelta(-1.2083717227212268e-7, $result['vector'][2], 1e-20);
+        self::assertEqualsWithDelta(0.021601494355160875, $result['vector'][3], 1e-15);
+        self::assertEqualsWithDelta(-0.006137127107544285, $result['vector'][4], 1e-15);
+        self::assertEqualsWithDelta(1.8695265654069076e-8, $result['vector'][5], 1e-20);
+    }
+
+    public function testMoonReferenceEllipseSegmentVectorCanBeEvaluated(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MOON, 2451545.0);
+        $result = EphemerisFiles::referenceEllipseSegmentVector($resolved['path'], Catalog::SE_MOON, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertTrue($result['referenceEllipseApplied']);
+        self::assertEqualsWithDelta(1.4613074243114, $result['omtild'], 1e-13);
+
+        self::assertEqualsWithDelta(-0.001958362115643682, $result['vector'][0], 1e-18);
+        self::assertEqualsWithDelta(-0.0018444492632457878, $result['vector'][1], 1e-18);
+        self::assertEqualsWithDelta(4.108361474314326e-6, $result['vector'][2], 1e-18);
+        self::assertEqualsWithDelta(0.0003719486748036237, $result['vector'][3], 1e-18);
+        self::assertEqualsWithDelta(-0.00042198485580503993, $result['vector'][4], 1e-18);
+        self::assertEqualsWithDelta(-9.084833123206908e-7, $result['vector'][5], 1e-19);
+    }
+
+    public function testReferenceEllipseIsSkippedWhenDescriptorDoesNotUseIt(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MAIN_ASTEROID, 2451545.0);
+        $result = EphemerisFiles::referenceEllipseSegmentVector($resolved['path'], Catalog::SE_MEAN_APOG, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertFalse($result['referenceEllipseApplied']);
+
+        self::assertEqualsWithDelta(-3.5295974023115098, $result['vector'][0], 1e-12);
+        self::assertEqualsWithDelta(-8.675404287753128, $result['vector'][1], 1e-12);
+        self::assertEqualsWithDelta(-2.935899333141072, $result['vector'][2], 1e-12);
+    }
+
     private function ephePath(): string
     {
         $path = getenv('SWISSPHP_EPHE_PATH') ?: self::FALLBACK_EPHE_PATH;

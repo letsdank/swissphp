@@ -578,6 +578,135 @@ final class EphemerisFiles
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public static function segmentCoefficientsWithReferenceEllipse(string $path, int $ipl, float $tjdEt): array
+    {
+        $segment = self::segmentCoefficients($path, $ipl, $tjdEt);
+
+        if ($segment['rc'] !== Catalog::SE_OK) {
+            return self::referenceEllipseCoefficientsError($path, $ipl, $segment['error']);
+        }
+
+        $entry = self::segmentIndexEntry($path, $ipl, $tjdEt);
+
+        if ($entry['rc'] !== Catalog::SE_OK) {
+            return self::referenceEllipseCoefficientsError($path, $ipl, $entry['error']);
+        }
+
+        $descriptor = $segment['descriptor'];
+        $coefficients = $segment['coefficients'];
+
+        $omtild = 0.0;
+        $com = 1.0;
+        $som = 0.0;
+        $applied = false;
+
+        if ((bool)$descriptor['usesReferenceEllipse']) {
+            $ncoe = (int)$descriptor['ncoe'];
+            $refep = $descriptor['refep'];
+
+            $tdiff = (((float)$entry['tseg0'] + (float)$descriptor['dseg'] / 2.0) - (float)$descriptor['telem']) / 365250.0;
+            $omtild = self::normalizeRadians((float)$descriptor['peri'] + $tdiff * (float)$descriptor['dperi']);
+            $com = cos($omtild);
+            $som = sin($omtild);
+
+            $refepx = array_slice($refep, 0, $ncoe);
+            $refepy = array_slice($refep, $ncoe, $ncoe);
+
+            for ($i = 0; $i < $ncoe; $i++) {
+                $x = $coefficients[0][$i];
+                $y = $coefficients[1][$i];
+
+                $coefficients[0][$i] = $x + $com * $refepx[$i] - $som * $refepy[$i];
+                $coefficients[1][$i] = $y + $com * $refepy[$i] + $som * $refepx[$i];
+            }
+
+            $applied = true;
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => $segment['segment'],
+            'segmentOffset' => $segment['segmentOffset'],
+            'nextOffset' => $segment['nextOffset'],
+            'coordinateSizes' => $segment['coordinateSizes'],
+            'coefficients' => $coefficients,
+            'referenceEllipseApplied' => $applied,
+            'omtild' => $omtild,
+            'cosOmtild' => $com,
+            'sinOmtild' => $som,
+            'descriptor' => $descriptor,
+            'error' => '',
+        ];
+    }
+
+    /**
+     * Low-level segment vector after reference ellipse addition, but before rot_back().
+     *
+     * @return array<string, mixed>
+     */
+    public static function referenceEllipseSegmentVector(string $path, int $ipl, float $tjdEt, bool $withSpeed = true): array
+    {
+        $entry = self::segmentIndexEntry($path, $ipl, $tjdEt);
+
+        if ($entry['rc'] !== Catalog::SE_OK) {
+            return self::referenceEllipseVectorError($path, $ipl, $entry['error']);
+        }
+
+        $segment = self::segmentCoefficientsWithReferenceEllipse($path, $ipl, $tjdEt);
+
+        if ($segment['rc'] !== Catalog::SE_OK) {
+            return self::referenceEllipseVectorError($path, $ipl, $segment['error']);
+        }
+
+        $descriptor = $segment['descriptor'];
+        $ncoe = (int)$descriptor['ncoe'];
+        $dseg = (float)$descriptor['dseg'];
+        $t = (($tjdEt - (float)$entry['tseg0']) / $dseg) * 2.0 - 1.0;
+
+        $position = [];
+        $speed = [];
+
+        for ($coord = 0; $coord < 3; $coord++) {
+            $coefficients = $segment['coefficients'][$coord];
+
+            $position[] = self::evaluateChebyshev($t, $coefficients, $ncoe);
+            $speed[] = $withSpeed
+                ? self::evaluateChebyshevDerivative($t, $coefficients, $ncoe) / $dseg * 2.0
+                : 0.0;
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => $entry['segment'],
+            't' => $t,
+            'position' => $position,
+            'speed' => $speed,
+            'vector' => [
+                $position[0],
+                $position[1],
+                $position[2],
+                $speed[0],
+                $speed[1],
+                $speed[2],
+            ],
+            'referenceEllipseApplied' => $segment['referenceEllipseApplied'],
+            'omtild' => $segment['omtild'],
+            'cosOmtild' => $segment['cosOmtild'],
+            'sinOmtild' => $segment['sinOmtild'],
+            'descriptor' => $descriptor,
+            'error' => '',
+        ];
+    }
+
+    /**
      * Evaluates raw Chebyshev segment coefficients from the ephemeris file.
      *
      * This is still the low-level file vector before Swiss Ephemeris applies
@@ -1009,6 +1138,18 @@ final class EphemerisFiles
         return ($bj - $bf) * 0.5;
     }
 
+    private static function normalizeRadians(float $value): float
+    {
+        $twoPi = 2.0 * M_PI;
+        $value = fmod($value, $twoPi);
+
+        if ($value < 0.0) {
+            return $value + $twoPi;
+        }
+
+        return $value;
+    }
+
     /**
      * @return array{rc:int, type:string, file:string, path:string, error:string}
      */
@@ -1150,6 +1291,54 @@ final class EphemerisFiles
             'position' => [],
             'speed' => [],
             'vector' => [],
+            'descriptor' => null,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function referenceEllipseCoefficientsError(string $path, int $ipl, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => -1,
+            'segmentOffset' => -1,
+            'nextOffset' => -1,
+            'coordinateSizes' => [],
+            'coefficients' => [],
+            'referenceEllipseApplied' => false,
+            'omtild' => 0.0,
+            'cosOmtild' => 0.0,
+            'sinOmtild' => 0.0,
+            'descriptor' => null,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function referenceEllipseVectorError(string $path, int $ipl, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => -1,
+            't' => 0.0,
+            'position' => [],
+            'speed' => [],
+            'vector' => [],
+            'referenceEllipseApplied' => false,
+            'omtild' => 0.0,
+            'cosOmtild' => 1.0,
+            'sinOmtild' => 0.0,
             'descriptor' => null,
             'error' => $error,
         ];
