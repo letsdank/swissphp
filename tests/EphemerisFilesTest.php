@@ -255,6 +255,65 @@ final class EphemerisFilesTest extends TestCase
         self::assertSame('ephemeris body descriptor not found', $result['error']);
     }
 
+    public function testMercurySegmentIndexEntryCanBeRead(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $entry = EphemerisFiles::segmentIndexEntry($resolved['path'], Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $entry['rc']);
+        self::assertSame(Catalog::SE_MERCURY, $entry['ipl']);
+        self::assertSame(830, $entry['segment']);
+        self::assertSame(5808, $entry['indexOffset']);
+        self::assertSame(85939, $entry['segmentOffset']);
+        self::assertEqualsWithDelta(2451502.2872715, $entry['tseg0'], 1e-7);
+        self::assertEqualsWithDelta(2451590.2566212, $entry['tseg1'], 1e-7);
+    }
+
+    public function testMoonSegmentIndexEntryCanBeRead(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MOON, 2451545.0);
+        $entry = EphemerisFiles::segmentIndexEntry($resolved['path'], Catalog::SE_MOON, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $entry['rc']);
+        self::assertSame(Catalog::SE_MOON, $entry['ipl']);
+        self::assertSame(2651, $entry['segment']);
+        self::assertSame(8699, $entry['indexOffset']);
+        self::assertSame(450929, $entry['segmentOffset']);
+        self::assertEqualsWithDelta(2451534.6712141, $entry['tseg0'], 1e-7);
+        self::assertEqualsWithDelta(2451562.2257656, $entry['tseg1'], 1e-7);
+    }
+
+    public function testMainAsteroidSegmentIndexEntryCanBeRead(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MAIN_ASTEROID, 2451545.0);
+        $entry = EphemerisFiles::segmentIndexEntry($resolved['path'], Catalog::SE_MEAN_APOG, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $entry['rc']);
+        self::assertSame(Catalog::SE_MEAN_APOG, $entry['ipl']);
+        self::assertSame(73, $entry['segment']);
+        self::assertSame(961, $entry['indexOffset']);
+        self::assertSame(12534, $entry['segmentOffset']);
+        self::assertEqualsWithDelta(2451496.5, $entry['tseg0'], 1e-9);
+        self::assertEqualsWithDelta(2452496.5, $entry['tseg1'], 1e-9);
+    }
+
+    public function testSegmentIndexEntryReturnsErrorOutsideBodyRange(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $entry = EphemerisFiles::segmentIndexEntry($resolved['path'], Catalog::SE_MERCURY, 3000000.0);
+
+        self::assertSame(Catalog::SE_ERR, $entry['rc']);
+        self::assertSame('julian day is outside ephemeris body range', $entry['error']);
+    }
+
     private function ephePath(): string
     {
         $path = getenv('SWISSPHP_EPHE_PATH') ?: self::FALLBACK_EPHE_PATH;

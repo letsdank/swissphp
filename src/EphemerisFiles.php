@@ -461,6 +461,70 @@ final class EphemerisFiles
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public static function segmentIndexEntry(string $path, int $ipl, float $tjdEt): array
+    {
+        $descriptors = self::bodyDescriptors($path);
+
+        if ($descriptors['rc'] !== Catalog::SE_OK) {
+            return self::segmentIndexError($path, $ipl, $descriptors['error']);
+        }
+
+        $metadata = $descriptors['metadata'];
+        $descriptor = null;
+
+        foreach ($descriptors['descriptors'] as $item) {
+            if ($item['ipl'] === $ipl) {
+                $descriptor = $item;
+                break;
+            }
+        }
+
+        if ($descriptor === null) {
+            return self::segmentIndexError($path, $ipl, 'ephemeris body descriptor not found');
+        }
+
+        $tfstart = (float)$descriptor['tfstart'];
+        $tfend = (float)$descriptor['tfend'];
+        $dseg = (float)$descriptor['dseg'];
+
+        if ($tjdEt < $tfstart || $tjdEt >= $tfend) {
+            return self::segmentIndexError($path, $ipl, 'julian day is outside ephemeris body range');
+        }
+
+        $segment = (int)floor(($tjdEt - $tfstart) / $dseg);
+        $nndx = (int)$descriptor['nndx'];
+
+        if ($segment < 0 || $segment >= $nndx) {
+            return self::segmentIndexError($path, $ipl, 'ephemeris segment index is outside body range');
+        }
+
+        $indexOffset = (int)$descriptor['lndx0'] + ($segment * 3);
+        $bytes = self::readAt($path, $indexOffset, 3);
+
+        if ($bytes === null) {
+            return self::segmentIndexError($path, $ipl, 'cannot read ephemeris segment index entry');
+        }
+
+        $segmentOffset = self::readUInt24($bytes, (string)$metadata['endian']);
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => $segment,
+            'indexOffset' => $indexOffset,
+            'segmentOffset' => $segmentOffset,
+            'tseg0' => $tfstart + ($segment * $dseg),
+            'tseg1' => $tfstart + (($segment + 1) * $dseg),
+            'descriptor' => $descriptor,
+            'error' => '',
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     public static function files(): array
@@ -560,6 +624,17 @@ final class EphemerisFiles
         $value = unpack($endian === 'little' ? 'vvalue' : 'nvalue', $bytes);
 
         return (int)$value['value'];
+    }
+
+    private static function readUInt24(string $bytes, string $endian): int
+    {
+        $value = unpack('C3', $bytes);
+
+        if ($endian === 'little') {
+            return (int)($value[1] + ($value[2] << 8) + ($value[3] << 16));
+        }
+
+        return (int)(($value[1] << 16) + ($value[2] << 8) + $value[3]);
     }
 
     private static function readUInt32(string $bytes, string $endian): int
@@ -664,6 +739,26 @@ final class EphemerisFiles
             'file' => basename($path),
             'metadata' => null,
             'descriptors' => [],
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function segmentIndexError(string $path, int $ipl, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => -1,
+            'indexOffset' => -1,
+            'segmentOffset' => -1,
+            'tseg0' => 0.0,
+            'tseg1' => 0.0,
+            'descriptor' => null,
             'error' => $error,
         ];
     }
