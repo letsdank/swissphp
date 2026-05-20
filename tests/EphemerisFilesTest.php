@@ -7,6 +7,7 @@ namespace SwissEph\Tests;
 use PHPUnit\Framework\TestCase;
 use SwissEph\Catalog;
 use SwissEph\EphemerisFiles;
+use function PHPUnit\Framework\assertSame;
 
 final class EphemerisFilesTest extends TestCase
 {
@@ -312,6 +313,78 @@ final class EphemerisFilesTest extends TestCase
 
         self::assertSame(Catalog::SE_ERR, $entry['rc']);
         self::assertSame('julian day is outside ephemeris body range', $entry['error']);
+    }
+
+    public function testMercurySegmentCoefficientsCanBeDecoded(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $result = EphemerisFiles::segmentCoefficients($resolved['path'], Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(85939, $result['segmentOffset']);
+        self::assertSame(86014, $result['nextOffset']);
+        self::assertSame([[0, 0, 10, 8], [0, 1, 9, 7], [0, 0, 4, 5]], $result['coordinateSizes']);
+
+        self::assertCount(3, $result['coefficients']);
+        self::assertCount(39, $result['coefficients'][0]);
+
+        self::assertEqualsWithDelta(-1.539e-6, $result['coefficients'][0][0], 1e-15);
+        self::assertEqualsWithDelta(-3.6045e-6, $result['coefficients'][0][1], 1e-15);
+        self::assertEqualsWithDelta(2.727075e-5, $result['coefficients'][1][0], 1e-15);
+        self::assertEqualsWithDelta(-1.05e-8, $result['coefficients'][2][0], 1e-18);
+    }
+
+    public function testMoonSegmentCoefficientsCanBeDecoded(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MOON, 2451545.0);
+        $result = EphemerisFiles::segmentCoefficients($resolved['path'], Catalog::SE_MOON, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(450929, $result['segmentOffset']);
+        self::assertSame(451088, $result['nextOffset']);
+        self::assertSame([[4, 8, 7, 5], [2, 10, 6, 7], [0, 7, 5, 6]], $result['coordinateSizes']);
+
+        self::assertCount(29, $result['coefficients'][0]);
+
+        self::assertEqualsWithDelta(5.6053838000000006e-5, $result['coefficients'][0][0], 1e-18);
+        self::assertEqualsWithDelta(-4.474466e-6, $result['coefficients'][0][1], 1e-18);
+        self::assertEqualsWithDelta(-3.4235956e-5, $result['coefficients'][1][0], 1e-18);
+        self::assertEqualsWithDelta(-1.6184660000000002e-6, $result['coefficients'][2][0], 1e-18);
+    }
+
+    public function testExtendedSegmentCoefficientHeaderCanBeDecoded(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MAIN_ASTEROID, 2451545.0);
+        $result = EphemerisFiles::segmentCoefficients($resolved['path'], Catalog::SE_MEAN_APOG, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(12534, $result['segmentOffset']);
+        self::assertSame(12637, $result['nextOffset']);
+        assertSame([[2, 2, 2, 9, 4, 6], [2, 2, 2, 10, 2, 7], [1, 3, 2, 8, 2, 9]], $result['coordinateSizes']);
+
+        self::assertCount(26, $result['coefficients'][0]);
+
+        self::assertEqualsWithDelta(-2.36679171, $result['coefficients'][0][0], 1e-12);
+        self::assertEqualsWithDelta(2.6142296700000003, $result['coefficients'][0][1], 1e-12);
+        self::assertEqualsWithDelta(-19.77715269, $result['coefficients'][1][0], 1e-12);
+        self::assertEqualsWithDelta(-6.33939567, $result['coefficients'][2][0], 1e-12);
+    }
+
+    public function testSegmentCoefficientsReturnErrorForMissingBody(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $result = EphemerisFiles::segmentCoefficients($resolved['path'], Catalog::SE_MOON, 2451545.0);
+
+        self::assertSame(Catalog::SE_ERR, $result['rc']);
+        self::assertSame('ephemeris body descriptor not found', $result['error']);
     }
 
     private function ephePath(): string

@@ -525,6 +525,199 @@ final class EphemerisFiles
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public static function segmentCoefficients(string $path, int $ipl, float $tjdEt): array
+    {
+        $entry = self::segmentIndexEntry($path, $ipl, $tjdEt);
+
+        if ($entry['rc'] !== Catalog::SE_OK) {
+            return self::segmentCoefficientsError($path, $ipl, $entry['error']);
+        }
+
+        $metadata = self::metadata($path);
+
+        if ($metadata['rc'] !== Catalog::SE_OK) {
+            return self::segmentCoefficientsError($path, $ipl, $metadata['error']);
+        }
+
+        $descriptor = $entry['descriptor'];
+        $offset = (int)$entry['segmentOffset'];
+        $endian = (string)$metadata['endian'];
+        $ncoe = (int)$descriptor['ncoe'];
+        $rmax = (float)$descriptor['rmax'];
+
+        $coefficients = [];
+        $coordinateSizes = [];
+
+        for ($coord = 0; $coord < 3; $coord++) {
+            $decoded = self::decodeCoordinateCoefficients($path, $offset, $ncoe, $rmax, $endian);
+
+            if ($decoded['rc'] !== Catalog::SE_OK) {
+                return self::segmentCoefficientsError($path, $ipl, $decoded['error']);
+            }
+
+            $coefficients[] = $decoded['coefficients'];
+            $coordinateSizes[] = $decoded['sizes'];
+            $offset = (int)$decoded['nextOffset'];
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => $entry['segment'],
+            'segmentOffset' => $entry['segmentOffset'],
+            'nextOffset' => $offset,
+            'coordinateSizes' => $coordinateSizes,
+            'coefficients' => $coefficients,
+            'descriptor' => $descriptor,
+            'error' => '',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function decodeCoordinateCoefficients(
+        string $path,
+        int    $offset,
+        int    $ncoe,
+        float  $rmax,
+        string $endian
+    ): array
+    {
+        $header = self::readAt($path, $offset, 2);
+
+        if ($header === null) {
+            return self::coefficientDecodeError('cannot read ephemeris coefficient header');
+        }
+
+        $cursor = $offset + 2;
+        $c0 = self::readUInt8($header[0]);
+        $c1 = self::readUInt8($header[1]);
+
+        if (($c0 & 128) !== 0) {
+            $extra = self::readAt($path, $cursor, 2);
+
+            if ($extra === null) {
+                return self::coefficientDecodeError('cannot read extended ephemeris coefficient header');
+            }
+
+            $cursor += 2;
+            $c2 = self::readUInt8($extra[0]);
+            $c3 = self::readUInt8($extra[1]);
+
+            $sizes = [
+                intdiv($c1, 16),
+                $c1 % 16,
+                intdiv($c2, 16),
+                $c2 % 16,
+                intdiv($c3, 16),
+                $c3 % 16,
+            ];
+        } else {
+            $sizes = [
+                intdiv($c0, 16),
+                $c0 % 16,
+                intdiv($c1, 16),
+                $c1 % 16,
+            ];
+        }
+
+        if (array_sum($sizes) > $ncoe) {
+            return self::coefficientDecodeError('ephemeris coefficient count exceeds descriptor order');
+        }
+
+        $coefficients = [];
+
+        foreach ($sizes as $sizeIndex => $count) {
+            if ($count === 0) {
+                continue;
+            }
+
+            if ($sizeIndex < 4) {
+                $byteCount = 4 - $sizeIndex;
+
+                for ($i = 0; $i < $count; $i++) {
+                    $bytes = self::readAt($path, $cursor, $byteCount);
+
+                    if ($bytes === null) {
+                        return self::coefficientDecodeError('cannot read packed ephemeris coefficient');
+                    }
+
+                    $cursor += $byteCount;
+                    $value = self::readPackedUnsigned($bytes, $endian);
+                    $coefficients[] = self::decodePackedCoefficient($value, $rmax);
+                }
+
+                continue;
+            }
+
+            if ($sizeIndex === 4) {
+                $packedCount = intdiv($count + 1, 2);
+                $done = 0;
+
+                for ($i = 0; $i < $packedCount && $done < $count; $i++) {
+                    $bytes = self::readAt($path, $cursor, 1);
+
+                    if ($bytes === null) {
+                        return self::coefficientDecodeError('cannot read half-byte ephemeris coefficient');
+                    }
+
+                    $cursor++;
+                    $value = self::readUInt8($bytes);
+                    $mask = 16;
+
+                    for ($j = 0; $j < 2 && $done < $count; $j++, $done++) {
+                        $coefficients[] = self::decodeSubByteCoefficient($value, $mask, $rmax);
+                        $value %= $mask;
+                        $mask = intdiv($mask, 16);
+                    }
+                }
+
+                continue;
+            }
+
+            if ($sizeIndex === 5) {
+                $packedCount = intdiv($count + 3, 4);
+                $done = 0;
+
+                for ($i = 0; $i < $packedCount && $done < $count; $i++) {
+                    $bytes = self::readAt($path, $cursor, 1);
+
+                    if ($bytes === null) {
+                        return self::coefficientDecodeError('cannot read quarter-byte ephemeris coefficient');
+                    }
+
+                    $cursor++;
+                    $value = self::readUInt8($bytes);
+                    $mask = 64;
+
+                    for ($j = 0; $j < 4 && $done < $count; $j++, $done++) {
+                        $coefficients[] = self::decodeSubByteCoefficient($value, $mask, $rmax);
+                        $value %= $mask;
+                        $mask = intdiv($mask, 4);
+                    }
+                }
+            }
+        }
+
+        while (count($coefficients) < $ncoe) {
+            $coefficients[] = 0.0;
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'sizes' => $sizes,
+            'coefficients' => $coefficients,
+            'nextOffset' => $cursor,
+            'error' => '',
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     public static function files(): array
@@ -671,6 +864,44 @@ final class EphemerisFiles
         return $values;
     }
 
+    private static function readPackedUnsigned(string $bytes, string $endian): int
+    {
+        $value = 0;
+        $length = strlen($bytes);
+
+        if ($endian === 'little') {
+            for ($i = 0; $i < $length; $i++) {
+                $value += ord($bytes[$i]) << (8 * $i);
+            }
+
+            return $value;
+        }
+
+        for ($i = 0; $i < $length; $i++) {
+            $value = ($value << 8) + ord($bytes[$i]);
+        }
+
+        return $value;
+    }
+
+    private static function decodePackedCoefficient(int $value, float $rmax): float
+    {
+        if (($value & 1) !== 0) {
+            return -((($value + 1) / 2) / 1e9 * $rmax / 2);
+        }
+
+        return ($value / 2) / 1e9 * $rmax / 2;
+    }
+
+    private static function decodeSubByteCoefficient(int $value, int $mask, float $rmax): float
+    {
+        if (($value & $mask) !== 0) {
+            return -((($value + $mask) / $mask / 2) * $rmax / 2 / 1e9);
+        }
+
+        return ($value / $mask / 2) * $rmax / 2 / 1e9;
+    }
+
     /**
      * @return array{rc:int, type:string, file:string, path:string, error:string}
      */
@@ -758,6 +989,40 @@ final class EphemerisFiles
             'segmentOffset' => -1,
             'tseg0' => 0.0,
             'tseg1' => 0.0,
+            'descriptor' => null,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function coefficientDecodeError(string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'sizes' => [],
+            'coefficients' => [],
+            'nextOffset' => -1,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function segmentCoefficientsError(string $path, int $ipl, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => -1,
+            'segmentOffset' => -1,
+            'nextOffset' => -1,
+            'coordinateSizes' => [],
+            'coefficients' => [],
             'descriptor' => null,
             'error' => $error,
         ];
