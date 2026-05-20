@@ -7,7 +7,6 @@ namespace SwissEph\Tests;
 use PHPUnit\Framework\TestCase;
 use SwissEph\Catalog;
 use SwissEph\EphemerisFiles;
-use function PHPUnit\Framework\assertSame;
 
 final class EphemerisFilesTest extends TestCase
 {
@@ -366,7 +365,7 @@ final class EphemerisFilesTest extends TestCase
         self::assertSame(Catalog::SE_OK, $result['rc']);
         self::assertSame(12534, $result['segmentOffset']);
         self::assertSame(12637, $result['nextOffset']);
-        assertSame([[2, 2, 2, 9, 4, 6], [2, 2, 2, 10, 2, 7], [1, 3, 2, 8, 2, 9]], $result['coordinateSizes']);
+        self::assertSame([[2, 2, 2, 9, 4, 6], [2, 2, 2, 10, 2, 7], [1, 3, 2, 8, 2, 9]], $result['coordinateSizes']);
 
         self::assertCount(26, $result['coefficients'][0]);
 
@@ -385,6 +384,77 @@ final class EphemerisFilesTest extends TestCase
 
         self::assertSame(Catalog::SE_ERR, $result['rc']);
         self::assertSame('ephemeris body descriptor not found', $result['error']);
+    }
+
+    public function testMercuryRawSegmentVectorCanBeEvaluated(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $result = EphemerisFiles::rawSegmentVector($resolved['path'], Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(830, $result['segment']);
+        self::assertEqualsWithDelta(-0.02891794383020707, $result['t'], 1e-14);
+
+        self::assertEqualsWithDelta(-3.704804443013136e-6, $result['vector'][0], 1e-18);
+        self::assertEqualsWithDelta(9.742794757673299e-6, $result['vector'][1], 1e-18);
+        self::assertEqualsWithDelta(-1.2083717227212268e-7, $result['vector'][2], 1e-20);
+        self::assertEqualsWithDelta(4.913872082244307e-7, $result['vector'][3], 1e-19);
+        self::assertEqualsWithDelta(-3.315312914205531e-7, $result['vector'][4], 1e-19);
+        self::assertEqualsWithDelta(1.8695265654069076e-8, $result['vector'][5], 1e-20);
+    }
+
+    public function testMoonRawSegmentVectorCanBeEvaluated(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MOON, 2451545.0);
+        $result = EphemerisFiles::rawSegmentVector($resolved['path'], Catalog::SE_MOON, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(2651, $result['segment']);
+        self::assertEqualsWithDelta(-0.2503027401518706, $result['t'], 1e-14);
+
+        self::assertEqualsWithDelta(-8.404490630540918e-7, $result['vector'][0], 1e-19);
+        self::assertEqualsWithDelta(-2.4459551160174223e-5, $result['vector'][1], 1e-18);
+        self::assertEqualsWithDelta(4.108361474314326e-6, $result['vector'][2], 1e-18);
+        self::assertEqualsWithDelta(4.40431172299435e-6, $result['vector'][3], 1e-18);
+        self::assertEqualsWithDelta(4.256962239948033e-6, $result['vector'][4], 1e-18);
+        self::assertEqualsWithDelta(-9.084833123206908e-7, $result['vector'][5], 1e-19);
+    }
+
+    public function testRawSegmentVectorCanSkipSpeed(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $result = EphemerisFiles::rawSegmentVector($resolved['path'], Catalog::SE_MERCURY, 2451545.0, false);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertEqualsWithDelta(-3.704804443013136e-6, $result['vector'][0], 1e-18);
+        self::assertSame(0.0, $result['vector'][3]);
+        self::assertSame(0.0, $result['vector'][4]);
+        self::assertSame(0.0, $result['vector'][5]);
+    }
+
+    public function testAsteroidRawSegmentVectorCanBeEvaluated(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MAIN_ASTEROID, 2451545.0);
+        $result = EphemerisFiles::rawSegmentVector($resolved['path'], Catalog::SE_MEAN_APOG, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(73, $result['segment']);
+        self::assertEqualsWithDelta(-0.903, $result['t'], 1e-15);
+
+        self::assertEqualsWithDelta(-3.5295974023115098, $result['vector'][0], 1e-12);
+        self::assertEqualsWithDelta(-8.675404287753128, $result['vector'][1], 1e-12);
+        self::assertEqualsWithDelta(-2.935899333141072, $result['vector'][2], 1e-12);
+        self::assertEqualsWithDelta(0.004971228697404033, $result['vector'][3], 1e-15);
+        self::assertEqualsWithDelta(-0.003626425056687955, $result['vector'][4], 1e-15);
+        self::assertEqualsWithDelta(-0.000825794577203404, $result['vector'][5], 1e-15);
     }
 
     private function ephePath(): string

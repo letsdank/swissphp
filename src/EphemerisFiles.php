@@ -578,6 +578,67 @@ final class EphemerisFiles
     }
 
     /**
+     * Evaluates raw Chebyshev segment coefficients from the ephemeris file.
+     *
+     * This is still the low-level file vector before Swiss Ephemeris applies
+     * reference ellipse handling, rot_back(), and higher-level corrections.
+     *
+     * @return array<string, mixed>
+     */
+    public static function rawSegmentVector(string $path, int $ipl, float $tjdEt, bool $withSpeed = true): array
+    {
+        $entry = self::segmentIndexEntry($path, $ipl, $tjdEt);
+
+        if ($entry['rc'] !== Catalog::SE_OK) {
+            return self::rawSegmentVectorError($path, $ipl, $entry['error']);
+        }
+
+        $segment = self::segmentCoefficients($path, $ipl, $tjdEt);
+
+        if ($segment['rc'] !== Catalog::SE_OK) {
+            return self::rawSegmentVectorError($path, $ipl, $segment['error']);
+        }
+
+        $descriptor = $entry['descriptor'];
+        $ncoe = (int)$descriptor['ncoe'];
+        $dseg = (float)$descriptor['dseg'];
+        $t = (($tjdEt - (float)$entry['tseg0']) / $dseg) * 2.0 - 1.0;
+
+        $position = [];
+        $speed = [];
+
+        for ($coord = 0; $coord < 3; $coord++) {
+            $coefficients = $segment['coefficients'][$coord];
+
+            $position[] = self::evaluateChebyshev($t, $coefficients, $ncoe);
+            $speed[] = $withSpeed
+                ? self::evaluateChebyshevDerivative($t, $coefficients, $ncoe) / $dseg * 2.0
+                : 0.0;
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => $entry['segment'],
+            't' => $t,
+            'position' => $position,
+            'speed' => $speed,
+            'vector' => [
+                $position[0],
+                $position[1],
+                $position[2],
+                $speed[0],
+                $speed[1],
+                $speed[2],
+            ],
+            'descriptor' => $descriptor,
+            'error' => '',
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private static function decodeCoordinateCoefficients(
@@ -903,6 +964,52 @@ final class EphemerisFiles
     }
 
     /**
+     * @param list<float> $coefficients
+     */
+    private static function evaluateChebyshev(float $x, array $coefficients, int $ncf): float
+    {
+        $x2 = $x * 2.0;
+        $br = 0.0;
+        $brp2 = 0.0;
+        $brpp = 0.0;
+
+        for ($j = $ncf - 1; $j >= 0; $j--) {
+            $brp2 = $brpp;
+            $brpp = $br;
+            $br = $x2 * $brpp - $brp2 + $coefficients[$j];
+        }
+
+        return ($br - $brp2) * 0.5;
+    }
+
+    /**
+     * @param list<float> $coefficients
+     */
+    private static function evaluateChebyshevDerivative(float $x, array $coefficients, int $ncf): float
+    {
+        $x2 = $x * 2.0;
+        $bf = 0.0;
+        $bj = 0.0;
+        $xjp2 = 0.0;
+        $xjpl = 0.0;
+        $bjp2 = 0.0;
+        $bjpl = 0.0;
+
+        for ($j = $ncf - 1; $j >= 1; $j--) {
+            $dj = (float)($j + $j);
+            $xj = $coefficients[$j] * $dj + $xjp2;
+            $bj = $x2 * $bjpl - $bjp2 + $xj;
+            $bf = $bjp2;
+            $bjp2 = $bjpl;
+            $bjpl = $bj;
+            $xjp2 = $xjpl;
+            $xjpl = $xj;
+        }
+
+        return ($bj - $bf) * 0.5;
+    }
+
+    /**
      * @return array{rc:int, type:string, file:string, path:string, error:string}
      */
     private static function error(string $type, string $file, string $path, string $error): array
@@ -1023,6 +1130,26 @@ final class EphemerisFiles
             'nextOffset' => -1,
             'coordinateSizes' => [],
             'coefficients' => [],
+            'descriptor' => null,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function rawSegmentVectorError(string $path, int $ipl, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => -1,
+            't' => 0.0,
+            'position' => [],
+            'speed' => [],
+            'vector' => [],
             'descriptor' => null,
             'error' => $error,
         ];
