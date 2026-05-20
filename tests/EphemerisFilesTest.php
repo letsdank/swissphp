@@ -510,6 +510,67 @@ final class EphemerisFilesTest extends TestCase
         self::assertEqualsWithDelta(-2.935899333141072, $result['vector'][2], 1e-12);
     }
 
+    public function testMercuryRotatedSegmentVectorCanBeEvaluated(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $result = EphemerisFiles::rotatedSegmentVector($resolved['path'], Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertTrue($result['referenceEllipseApplied']);
+        self::assertSame(38, $result['neval']);
+        self::assertSame(39, $result['nEvaluate']);
+        self::assertEqualsWithDelta(0.24978830395426, $result['qav'], 1e-14);
+        self::assertEqualsWithDelta(0.04849987019015, $result['pav'], 1e-14);
+
+        self::assertEqualsWithDelta(-0.13009360541613507, $result['vector'][0], 1e-15);
+        self::assertEqualsWithDelta(-0.4005937212474019, $result['vector'][1], 1e-15);
+        self::assertEqualsWithDelta(-0.20048930255662406, $result['vector'][2], 1e-15);
+        self::assertEqualsWithDelta(0.021366395390606238, $result['vector'][3], 1e-15);
+        self::assertEqualsWithDelta(-0.004926299709712775, $result['vector'][4], 1e-15);
+        self::assertEqualsWithDelta(-0.004847433000353457, $result['vector'][5], 1e-15);
+    }
+
+    public function testMoonRotatedSegmentVectorCanBeEvaluated(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MOON, 2451545.0);
+        $result = EphemerisFiles::rotatedSegmentVector($resolved['path'], Catalog::SE_MOON, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertTrue($result['referenceEllipseApplied']);
+        self::assertSame(27, $result['neval']);
+        self::assertSame(28, $result['nEvaluate']);
+        self::assertEqualsWithDelta(-0.025645155267929, $result['qav'], 1e-14);
+        self::assertEqualsWithDelta(0.036827667249436, $result['pav'], 1e-14);
+
+        self::assertEqualsWithDelta(-0.0019492816524243374, $result['vector'][0], 1e-18);
+        self::assertEqualsWithDelta(-0.0017828919076323432, $result['vector'][1], 1e-18);
+        self::assertEqualsWithDelta(-0.0005087136960336372, $result['vector'][2], 1e-18);
+        self::assertEqualsWithDelta(0.00037167047775977347, $result['vector'][3], 1e-18);
+        self::assertEqualsWithDelta(-0.0003846978302252612, $result['vector'][4], 1e-18);
+        self::assertEqualsWithDelta(-0.0001740301581366591, $result['vector'][5], 1e-18);
+    }
+
+    public function testRotatedSegmentVectorKeepsUnrotatedAsteroidWhenFlagsDoNotRequestRotation(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MAIN_ASTEROID, 2451545.0);
+        $result = EphemerisFiles::rotatedSegmentVector($resolved['path'], Catalog::SE_MEAN_APOG, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertFalse($result['referenceEllipseApplied']);
+        self::assertEqualsWithDelta(0.0, $result['qav'], 1e-15);
+        self::assertEqualsWithDelta(0.0, $result['pav'], 1e-15);
+
+        self::assertEqualsWithDelta(-3.5295974023115098, $result['vector'][0], 1e-12);
+        self::assertEqualsWithDelta(-8.675404287753128, $result['vector'][1], 1e-12);
+        self::assertEqualsWithDelta(-2.935899333141072, $result['vector'][2], 1e-12);
+    }
+
     private function ephePath(): string
     {
         $path = getenv('SWISSPHP_EPHE_PATH') ?: self::FALLBACK_EPHE_PATH;

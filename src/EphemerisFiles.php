@@ -23,6 +23,9 @@ final class EphemerisFiles
     private const GENERAL_CONSTANT_BYTES = 40;
     private const BODY_DESCRIPTOR_BYTES = 90;
 
+    private const J2000_SIN_EPS = 0.39777715572793088;
+    private const J2000_COS_EPS = 0.91748206215761929;
+
     private static string $path = '';
 
     public static function setPath(string $path): void
@@ -707,6 +710,175 @@ final class EphemerisFiles
     }
 
     /**
+     * Applies Swiss Ephemeris rot_back() orientation to segment coefficients.
+     *
+     * @return array<string, mixed>
+     */
+    public static function rotatedSegmentCoefficients(string $path, int $ipl, float $tjdEt): array
+    {
+        $segment = self::segmentCoefficientsWithReferenceEllipse($path, $ipl, $tjdEt);
+
+        if ($segment['rc'] !== Catalog::SE_OK) {
+            return self::rotatedCoefficientsError($path, $ipl, $segment['error']);
+        }
+
+        $entry = self::segmentIndexEntry($path, $ipl, $tjdEt);
+
+        if ($entry['rc'] !== Catalog::SE_OK) {
+            return self::rotatedCoefficientsErrpr($path, $ipl, $entry['error']);
+        }
+
+        $descriptor = $segment['descriptor'];
+        $coefficients = $segment['coefficients'];
+        $ncoe = (int)$descriptor['ncoe'];
+
+        $tdiff = (((float)$entry['tseg0'] + (float)$descriptor['dseg'] / 2.0) - (float)$descriptor['telem']) / 365250.0;
+
+        if ($ipl === Catalog::SE_MOON) {
+            $dn = self::normalizeRadians((float)$descriptor['prot'] + $tdiff * (float)$descriptor['dprot']);
+            $qrot = (float)$descriptor['qrot'] + $tdiff * (float)$descriptor['dqrot'];
+            $qav = $qrot * cos($dn);
+            $pav = $qrot * sin($dn);
+        } else {
+            $qav = (float)$descriptor['qrot'] + $tdiff * (float)$descriptor['dqrot'];
+            $pav = (float)$descriptor['prot'] + $tdiff * (float)$descriptor['dprot'];
+        }
+
+        $cosih2 = 1.0 / (1.0 + $qav * $qav + $pav * $pav);
+
+        $uiz = [
+            2.0 * $pav * $cosih2,
+            -2.0 * $qav * $cosih2,
+            (1.0 - $qav * $qav - $pav * $pav) * $cosih2,
+        ];
+
+        $uix = [
+            (1.0 + $qav * $qav - $pav * $pav) * $cosih2,
+            2.0 * $qav * $pav * $cosih2,
+            -2.0 * $pav * $cosih2,
+        ];
+
+        $uiy = [
+            2.0 * $qav * $pav * $cosih2,
+            (1.0 - $qav * $qav + $pav * $pav) * $cosih2,
+            2.0 * $qav * $cosih2,
+        ];
+
+        $neval = 0;
+
+        for ($i = 0; $i < $ncoe; $i++) {
+            $x = $coefficients[0][$i];
+            $y = $coefficients[1][$i];
+            $z = $coefficients[2][$i];
+
+            $xrot = $x * $uix[0] + $y * $uiy[0] + $z * $uiz[0];
+            $yrot = $x * $uix[1] + $y * $uiy[1] + $z * $uiz[1];
+            $zrot = $x * $uix[2] + $y * $uiy[2] + $z * $uiz[2];
+
+            if (abs($xrot) + abs($yrot) + abs($zrot) >= 1e-14) {
+                $neval = $i;
+            }
+
+            if ($ipl === Catalog::SE_MOON) {
+                $equatorialY = self::J2000_COS_EPS * $yrot - self::J2000_SIN_EPS * $zrot;
+                $equatorialZ = self::J2000_SIN_EPS * $yrot + self::J2000_COS_EPS * $zrot;
+
+                $yrot = $equatorialY;
+                $zrot = $equatorialZ;
+            }
+
+            $coefficients[0][$i] = $xrot;
+            $coefficients[1][$i] = $yrot;
+            $coefficients[2][$i] = $zrot;
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => $segment['segment'],
+            'segmentOffset' => $segment['segmentOffset'],
+            'nextOffset' => $segment['nextOffset'],
+            'coordinateSizes' => $segment['coordinateSizes'],
+            'coefficients' => $coefficients,
+            'referenceEllipseApplied' => $segment['referenceEllipseApplied'],
+            'qav' => $qav,
+            'pav' => $pav,
+            'uix' => $uix,
+            'uiy' => $uiy,
+            'uiz' => $uiz,
+            'neval' => $neval,
+            'nEvaluate' => $neval + 1,
+            'descriptor' => $descriptor,
+            'error' => '',
+        ];
+    }
+
+    /**
+     * Low-level segment vector after reference ellipse and rot_back().
+     *
+     * @return array<string, mixed>
+     */
+    public static function rotatedSegmentVector(string $path, int $ipl, float $tjdEt, bool $withSpeed = true): array
+    {
+        $entry = self::segmentIndexEntry($path, $ipl, $tjdEt);
+
+        if ($entry['rc'] !== Catalog::SE_OK) {
+            return self::rotatedVectorError($path, $ipl, $entry['error']);
+        }
+
+        $segment = self::rotatedSegmentCoefficients($path, $ipl, $tjdEt);
+
+        if ($segment['rc'] !== Catalog::SE_OK) {
+            return self::rotatedVectorError($path, $ipl, $segment['error']);
+        }
+
+        $descriptor = $segment['descriptor'];
+        $ncoe = (int)$segment['nEvaluate'];
+        $dseg = (float)$descriptor['dseg'];
+        $t = (($tjdEt - (float)$entry['tseg0']) / $dseg) * 2.0 - 1.0;
+
+        $position = [];
+        $speed = [];
+
+        for ($coord = 0; $coord < 3; $coord++) {
+            $coefficients = $segment['coefficients'][$coord];
+
+            $position[] = self::evaluateChebyshev($t, $coefficients, $ncoe);
+            $speed[] = $withSpeed
+                ? self::evaluateChebyshevDerivative($t, $coefficients, $ncoe) / $dseg * 2.0
+                : 0.0;
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => $entry['segment'],
+            't' => $t,
+            'position' => $position,
+            'speed' => $speed,
+            'vector' => [
+                $position[0],
+                $position[1],
+                $position[2],
+                $speed[0],
+                $speed[1],
+                $speed[2],
+            ],
+            'referenceEllipseApplied' => $segment['referenceEllipseApplied'],
+            'qav' => $segment['qav'],
+            'pav' => $segment['pav'],
+            'neval' => $segment['neval'],
+            'nEvaluate' => $segment['nEvaluate'],
+            'descriptor' => $descriptor,
+            'error' => '',
+        ];
+    }
+
+    /**
      * Evaluates raw Chebyshev segment coefficients from the ephemeris file.
      *
      * This is still the low-level file vector before Swiss Ephemeris applies
@@ -1339,6 +1511,59 @@ final class EphemerisFiles
             'omtild' => 0.0,
             'cosOmtild' => 1.0,
             'sinOmtild' => 0.0,
+            'descriptor' => null,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function rotatedCoefficientsError(string $path, int $ipl, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => -1,
+            'segmentOffset' => -1,
+            'nextOffset' => -1,
+            'coordinateSizes' => [],
+            'coefficients' => [],
+            'referenceEllipseApplied' => false,
+            'qav' => 0.0,
+            'pav' => 0.0,
+            'uix' => [],
+            'uiy' => [],
+            'uiz' => [],
+            'neval' => 0,
+            'nEvaluate' => 0,
+            'descriptor' => null,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function rotatedVectorError(string $path, int $ipl, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'ipl' => $ipl,
+            'segment' => -1,
+            't' => 0.0,
+            'position' => [],
+            'speed' => [],
+            'vector' => [],
+            'referenceEllipseApplied' => false,
+            'qav' => 0.0,
+            'pav' => 0.0,
+            'neval' => 0,
+            'nEvaluate' => 0,
             'descriptor' => null,
             'error' => $error,
         ];
