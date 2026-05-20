@@ -170,6 +170,91 @@ final class EphemerisFilesTest extends TestCase
         self::assertSame('ephemeris file not found', $metadata['error']);
     }
 
+    public function testPlanetBodyDescriptorsCanBeRead(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $result = EphemerisFiles::bodyDescriptors($resolved['path']);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertCount(10, $result['descriptors']);
+
+        $mercury = $result['descriptors'][0];
+
+        self::assertSame(Catalog::SE_MERCURY, $mercury['ipl']);
+        self::assertSame(3318, $mercury['lndx0']);
+        self::assertSame(15, $mercury['flags']);
+        self::assertSame(39, $mercury['ncoe']);
+        self::assertSame(1.5, $mercury['rmax']);
+        self::assertTrue($mercury['isHeliocentric']);
+        self::assertTrue($mercury['isRotated']);
+        self::assertTrue($mercury['usesReferenceEllipse']);
+        self::assertTrue($mercury['isEmbHeliocentric']);
+        self::assertSame(78, $mercury['refepCount']);
+        self::assertCount(78, $mercury['refep']);
+        self::assertEqualsWithDelta(2378487.7270665597, $mercury['tfstart'], 1e-9);
+        self::assertEqualsWithDelta(87.96934964454672, $mercury['dseg'], 1e-12);
+    }
+
+    public function testMoonBodyDescriptorCanBeRead(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MOON, 2451545.0);
+        $result = EphemerisFiles::bodyDescriptor($resolved['path'], Catalog::SE_MOON);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+
+        $moon = $result['descriptor'];
+
+        self::assertSame(Catalog::SE_MOON, $moon['ipl']);
+        self::assertSame(746, $moon['lndx0']);
+        self::assertSame(14, $moon['flags']);
+        self::assertSame(29, $moon['ncoe']);
+        self::assertSame(0.004, $moon['rmax']);
+        self::assertFalse($moon['isHeliocentric']);
+        self::assertTrue($moon['isRotated']);
+        self::assertTrue($moon['usesReferenceEllipse']);
+        self::assertTrue($moon['isEmbHeliocentric']);
+        self::assertSame(58, $moon['refepCount']);
+        self::assertCount(58, $moon['refep']);
+        self::assertEqualsWithDelta(27.5545514309491, $moon['dseg'], 1e-12);
+    }
+
+    public function testMainAsteroidBodyDescriptorCanBeRead(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_MAIN_ASTEROID, 2451545.0);
+        $result = EphemerisFiles::bodyDescriptor($resolved['path'], Catalog::SE_MEAN_APOG);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+
+        $descriptor = $result['descriptor'];
+
+        self::assertSame(Catalog::SE_MEAN_APOG, $descriptor['ipl']);
+        self::assertSame(742, $descriptor['lndx0']);
+        self::assertSame(8, $descriptor['flags']);
+        self::assertSame(26, $descriptor['ncoe']);
+        self::assertSame(60.0, $descriptor['rmax']);
+        self::assertFalse($descriptor['usesReferenceEllipse']);
+        self::assertSame(0, $descriptor['refepCount']);
+        self::assertSame([], $descriptor['refep']);
+        self::assertEqualsWithDelta(1000.0, $descriptor['dseg'], 1e-12);
+    }
+
+    public function testBodyDescriptorReturnsErrorForMissingBody(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $resolved = EphemerisFiles::resolve(EphemerisFiles::TYPE_PLANET, 2451545.0);
+        $result = EphemerisFiles::bodyDescriptor($resolved['path'], Catalog::SE_MOON);
+
+        self::assertSame(Catalog::SE_ERR, $result['rc']);
+        self::assertSame('ephemeris body descriptor not found', $result['error']);
+    }
+
     private function ephePath(): string
     {
         $path = getenv('SWISSPHP_EPHE_PATH') ?: self::FALLBACK_EPHE_PATH;

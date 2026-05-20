@@ -14,6 +14,15 @@ final class EphemerisFiles
     private const MARKER_LITTLE_ENDIAN = "cba\0";
     private const MARKER_BIG_ENDIAN = "\0abc";
 
+    public const BODY_FLAG_HELIO = 1;
+    public const BODY_FLAG_ROTATE = 2;
+    public const BODY_FLAG_ELLIPSE = 4;
+    public const BODY_FLAG_EMBHEL = 8;
+
+    private const CRC_BYTES = 4;
+    private const GENERAL_CONSTANT_BYTES = 40;
+    private const BODY_DESCRIPTOR_BYTES = 90;
+
     private static string $path = '';
 
     public static function setPath(string $path): void
@@ -272,6 +281,10 @@ final class EphemerisFiles
                 : self::readUInt32($bytes, $endian);
         }
 
+        $crcOffset = $planetListOffset + ($nplan * $iplBytes);
+        $generalConstantsOffset = $crcOffset + self::CRC_BYTES;
+        $bodyDescriptorsOffset = $generalConstantsOffset + self::GENERAL_CONSTANT_BYTES;
+
         return [
             'rc' => Catalog::SE_OK,
             'path' => $path,
@@ -279,7 +292,10 @@ final class EphemerisFiles
             'endian' => $endian,
             'markerOffset' => $marker['offset'],
             'dataOffset' => $offset,
-            'planetDataOffset' => $planetListOffset + ($nplan * $iplBytes),
+            'crcOffset' => $crcOffset,
+            'generalConstantsOffset' => $generalConstantsOffset,
+            'bodyDescriptorsOffset' => $bodyDescriptorsOffset,
+            'planetDataOffset' => $bodyDescriptorsOffset,
             'fileLength' => $fileLength,
             'actualFileLength' => $actualFileLength,
             'denum' => $denum,
@@ -305,6 +321,143 @@ final class EphemerisFiles
     public static function containsPlanet(array $metadata, int $ipl): bool
     {
         return in_array($ipl, $metadata['ipl'], true);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function bodyDescriptors(string $path): array
+    {
+        $metadata = self::metadata($path);
+
+        if ($metadata['rc'] !== Catalog::SE_OK) {
+            return self::descriptorError($path, $metadata['error']);
+        }
+
+        $offset = (int)$metadata['bodyDescriptorsOffset'];
+        $endian = (string)$metadata['endian'];
+        $descriptors = [];
+
+        foreach ($metadata['ipl'] as $ipl) {
+            $bytes = self::readAt($path, $offset, self::BODY_DESCRIPTOR_BYTES);
+
+            if ($bytes === null) {
+                return self::descriptorError($path, 'cannot read ephemeris body descriptor');
+            }
+
+            $cursor = 0;
+
+            $lndx0 = self::readUInt32(substr($bytes, $cursor, 4), $endian);
+            $cursor += 4;
+
+            $flags = self::readUInt8(substr($bytes, $cursor, 1));
+            $cursor += 1;
+
+            $ncoe = self::readUInt8(substr($bytes, $cursor, 1));
+            $cursor += 1;
+
+            $rmaxRaw = self::readUInt32(substr($bytes, $cursor, 4), $endian);
+            $cursor += 4;
+
+            $values = [];
+
+            for ($i = 0; $i < 10; $i++) {
+                $values[] = self::readDouble(substr($bytes, $cursor, 8), $endian);
+                $cursor += 8;
+            }
+
+            $nextOffset = $offset + self::BODY_DESCRIPTOR_BYTES;
+            $refep = [];
+            $refepOffset = null;
+            $refepCount = 0;
+
+            if (($flags & self::BODY_FLAG_ELLIPSE) !== 0) {
+                $refepOffset = $nextOffset;
+                $refepCount = $ncoe * 2;
+                $refep = self::readDoubleList($path, $refepOffset, $refepCount, $endian);
+
+                if ($refep === null) {
+                    return self::descriptorError($path, 'cannot read ephemeris reference ellipse');
+                }
+
+                $nextOffset += $refepCount * 8;
+            }
+
+            $tfstart = $values[0];
+            $tfend = $values[1];
+            $dseg = $values[2];
+
+            $descriptors[] = [
+                'ipl' => $ipl,
+                'offset' => $offset,
+                'lndx0' => $lndx0,
+                'flags' => $flags,
+                'isHeliocentric' => ($flags & self::BODY_FLAG_HELIO) !== 0,
+                'isRotated' => ($flags & self::BODY_FLAG_ROTATE) !== 0,
+                'usesReferenceEllipse' => ($flags & self::BODY_FLAG_ELLIPSE) !== 0,
+                'isEmbHeliocentric' => ($flags & self::BODY_FLAG_EMBHEL) !== 0,
+                'ncoe' => $ncoe,
+                'rmax' => $rmaxRaw / 1000.0,
+                'tfstart' => $tfstart,
+                'tfend' => $tfend,
+                'dseg' => $dseg,
+                'nndx' => (int)(($tfend - $tfstart + 0.1) / $dseg),
+                'telem' => $values[3],
+                'prot' => $values[4],
+                'dprot' => $values[5],
+                'qrot' => $values[6],
+                'dqrot' => $values[7],
+                'peri' => $values[8],
+                'dperi' => $values[9],
+                'refepOffset' => $refepOffset,
+                'refepCount' => $refepCount,
+                'refep' => $refep,
+                'nextOffset' => $nextOffset,
+            ];
+
+            $offset = $nextOffset;
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'path' => $path,
+            'file' => basename($path),
+            'metadata' => $metadata,
+            'descriptors' => $descriptors,
+            'error' => '',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function bodyDescriptor(string $path, int $ipl): array
+    {
+        $result = self::bodyDescriptors($path);
+
+        if ($result['rc'] !== Catalog::SE_OK) {
+            return $result;
+        }
+
+        foreach ($result['descriptors'] as $descriptor) {
+            if ($descriptor['ipl'] === $ipl) {
+                return [
+                    'rc' => Catalog::SE_OK,
+                    'path' => $path,
+                    'file' => basename($path),
+                    'descriptor' => $descriptor,
+                    'error' => '',
+                ];
+            }
+        }
+
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'descriptor' => null,
+            'error' => 'ephemeris body descriptor not found',
+        ];
     }
 
     /**
@@ -397,6 +550,11 @@ final class EphemerisFiles
         return $bytes;
     }
 
+    private static function readUInt8(string $bytes): int
+    {
+        return ord($bytes);
+    }
+
     private static function readUInt16(string $bytes, string $endian): int
     {
         $value = unpack($endian === 'little' ? 'vvalue' : 'nvalue', $bytes);
@@ -416,6 +574,26 @@ final class EphemerisFiles
         $value = unpack($endian === 'little' ? 'evalue' : 'Evalue', $bytes);
 
         return (float)$value['value'];
+    }
+
+    /**
+     * @return list<float>|null
+     */
+    private static function readDoubleList(string $path, int $offset, int $count, string $endian): ?array
+    {
+        $bytes = self::readAt($path, $offset, $count * 8);
+
+        if ($bytes === null) {
+            return null;
+        }
+
+        $values = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $values[] = self::readDouble(substr($bytes, $i * 8, 8), $endian);
+        }
+
+        return $values;
     }
 
     /**
@@ -460,6 +638,9 @@ final class EphemerisFiles
             'endian' => '',
             'markerOffset' => -1,
             'dataOffset' => -1,
+            'crcOffset' => -1,
+            'generalConstantsOffset' => -1,
+            'bodyDescriptorsOffset' => -1,
             'planetDataOffset' => -1,
             'fileLength' => 0,
             'actualFileLength' => 0,
@@ -468,6 +649,21 @@ final class EphemerisFiles
             'tfend' => 0.0,
             'nplan' => 0,
             'ipl' => [],
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function descriptorError(string $path, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'path' => $path,
+            'file' => basename($path),
+            'metadata' => null,
+            'descriptors' => [],
             'error' => $error,
         ];
     }
