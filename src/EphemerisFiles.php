@@ -4,6 +4,22 @@ declare(strict_types=1);
 
 namespace SwissEph;
 
+/**
+ * Low-level Swiss Ephemeris `.se1` file reader.
+ *
+ * This class reads Swiss Ephemeris binary files directly: text header,
+ * metadata, body descriptors, segment index entries, packed Chebyshev
+ * coefficients, reference ellipse data, and rotated segment vectors.
+ *
+ * The API is intentionally lower-level than Calculator::calc(). It returns
+ * vectors from the ephemeris files after reference ellipse handling and
+ * rot_back() rotation, but it does not apply the complete Swiss Ephemeris
+ * apparent/geocentric correction pipeline yet.
+ *
+ * Ephemeris data files are not bundled with SwissPHP. Call setPath() with a
+ * directory containing `.se1` files before using resolve(), metadata(), or
+ * position().
+ */
 final class EphemerisFiles
 {
     public const TYPE_PLANET = 'planet';
@@ -140,11 +156,18 @@ final class EphemerisFiles
     }
 
     /**
-     * Computes the low-level Swiss ephemeris file vector for a body.
+     * Evaluates a body directly from Swiss Ephemeris `.se1` files.
      *
-     * The returned vector is evaluated from `.se1` coefficients with reference
-     * ellipse and rot_back() applied. Higher-level apparent/geocentric correction
-     * layers are intentionally not applied here.
+     * This method is the highest-level API in this class. It resolves the file
+     * for the requested body and date, reads the body descriptor, decodes the
+     * matching Chebyshev segment, applies the reference ellipse when present,
+     * applies Swiss Ephemeris-style rot_back() rotation, and returns a six-value
+     * vector `[x, y, z, dx, dy, dz]`.
+     *
+     * The returned vector is still a low-level ephemeris-file vector. It is not
+     * the final result of swe_calc()/Calculator::calc() because light-time,
+     * aberration, deflection, precession/nutation, topocentric, sidereal, and
+     * output-format transformations are handled elsewhere.
      *
      * @return array<string, mixed>
      */
@@ -585,6 +608,13 @@ final class EphemerisFiles
     }
 
     /**
+     * Decodes packed Chebyshev coefficients for the segment containing $tjdEt.
+     *
+     * Swiss `.se1` files store each coordinate with a compact variable-width
+     * integer packing. This method performs only the binary unpacking step. The
+     * returned coefficients are still in the file's local segment frame and may
+     * still need reference ellipse handling and rot_back() rotation.
+     *
      * @return array<string, mixed>
      */
     public static function segmentCoefficients(string $path, int $ipl, float $tjdEt): array
@@ -705,7 +735,11 @@ final class EphemerisFiles
     }
 
     /**
-     * Low-level segment vector after reference ellipse addition, but before rot_back().
+     * Evaluates a segment after adding the reference ellipse, before rot_back().
+     *
+     * Bodies with BODY_FLAG_ELLIPSE store Chebyshev residuals around a reference
+     * orbit. This method adds the reference ellipse and evaluates the segment,
+     * but it intentionally stops before applying the orientation rotation.
      *
      * @return array<string, mixed>
      */
@@ -873,7 +907,12 @@ final class EphemerisFiles
     }
 
     /**
-     * Low-level segment vector after reference ellipse and rot_back().
+     * Evaluates a segment after reference ellipse handling and rot_back().
+     *
+     * This mirrors the low-level Swiss Ephemeris file step after Chebyshev
+     * decoding: residuals are combined with the reference ellipse, coefficients
+     * are rotated into their final file-frame orientation, and the segment is
+     * evaluated at $tjdEt.
      *
      * @return array<string, mixed>
      */
@@ -938,8 +977,8 @@ final class EphemerisFiles
     /**
      * Evaluates raw Chebyshev segment coefficients from the ephemeris file.
      *
-     * This is still the low-level file vector before Swiss Ephemeris applies
-     * reference ellipse handling, rot_back(), and higher-level corrections.
+     * This is useful for tests and debugging the file decoder. It intentionally
+     * does not apply the reference ellipse or rot_back() rotation.
      *
      * @return array<string, mixed>
      */
