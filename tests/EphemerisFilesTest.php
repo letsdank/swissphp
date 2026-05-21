@@ -572,6 +572,82 @@ final class EphemerisFilesTest extends TestCase
         self::assertEqualsWithDelta(1.5, $result['vector'][2], 1e-12);
     }
 
+    public function testPositionReturnsMercuryVectorFromEphemerisFile(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $result = EphemerisFiles::position(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(Catalog::SE_MERCURY, $result['body']);
+        self::assertSame(Catalog::SE_MERCURY, $result['ipl']);
+        self::assertSame(EphemerisFiles::TYPE_PLANET, $result['type']);
+        self::assertSame('sepl_18.se1', $result['file']);
+        self::assertSame(0, $result['segment']);
+
+        self::assertEqualsWithDelta(0.05, $result['vector'][0], 1e-15);
+        self::assertEqualsWithDelta(0.102, $result['vector'][1], 1e-15);
+        self::assertEqualsWithDelta(0.015, $result['vector'][2], 1e-15);
+        self::assertEqualsWithDelta(0.002, $result['vector'][3], 1e-15);
+        self::assertEqualsWithDelta(-0.004, $result['vector'][4], 1e-15);
+        self::assertEqualsWithDelta(0.0, $result['vector'][5], 1e-15);
+    }
+
+    public function testPositionReturnsMoonVectorFromEphemerisFile(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $result = EphemerisFiles::position(Catalog::SE_MOON, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(Catalog::SE_MOON, $result['body']);
+        self::assertSame(Catalog::SE_MOON, $result['ipl']);
+        self::assertSame(EphemerisFiles::TYPE_MOON, $result['type']);
+        self::assertSame('semo_18.se1', $result['file']);
+
+        self::assertEqualsWithDelta(0.002, $result['vector'][0], 1e-18);
+        self::assertEqualsWithDelta(0.0011613375635611345, $result['vector'][1], 1e-18);
+        self::assertEqualsWithDelta(0.00486325971581427, $result['vector'][2], 1e-18);
+        self::assertEqualsWithDelta(0.0004, $result['vector'][3], 1e-18);
+    }
+
+    public function testPositionMapsMainAsteroidBodyToFileBodyNumber(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $result = EphemerisFiles::position(Catalog::SE_AST_OFFSET + 1, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(Catalog::SE_AST_OFFSET + 1, $result['body']);
+        self::assertSame(Catalog::SE_MEAN_APOG, $result['ipl']);
+        self::assertSame(EphemerisFiles::TYPE_ASTEROID, $result['type']);
+        self::assertSame('seas_18.se1', $result['file']);
+    }
+
+    public function testPositionCanSkipSpeed(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $result = EphemerisFiles::position(Catalog::SE_MERCURY, 2451545.0, false);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertEqualsWithDelta(0.05, $result['vector'][0], 1e-15);
+        self::assertSame(0.0, $result['vector'][3]);
+        self::assertSame(0.0, $result['vector'][4]);
+        self::assertSame(0.0, $result['vector'][5]);
+    }
+
+    public function testPositionReturnsErrorWhenFileIsMissing(): void
+    {
+        EphemerisFiles::setPath('/tmp/swissphp-missing-ephe-path');
+
+        $result = EphemerisFiles::position(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_ERR, $result['rc']);
+        self::assertSame('ephemeris file not found', $result['error']);
+        self::assertSame([], $result['vector']);
+    }
+
     private function ephePath(): string
     {
         return EphemerisFixtureFactory::path();

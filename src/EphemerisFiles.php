@@ -140,6 +140,63 @@ final class EphemerisFiles
     }
 
     /**
+     * Computes the low-level Swiss ephemeris file vector for a body.
+     *
+     * The returned vector is evaluated from `.se1` coefficients with reference
+     * ellipse and rot_back() applied. Higher-level apparent/geocentric correction
+     * layers are intentionally not applied here.
+     *
+     * @return array<string, mixed>
+     */
+    public static function position(int $body, float $tjdEt, bool $withSpeed = true): array
+    {
+        $resolved = self::resolveForBody($body, $tjdEt);
+
+        if ($resolved['rc'] !== Catalog::SE_OK) {
+            return self::positionError($body, $resolved['type'], $resolved['file'], $resolved['path'], $resolved['error']);
+        }
+
+        $metadata = self::metadata($resolved['path']);
+
+        if ($metadata['rc'] !== Catalog::SE_OK) {
+            return self::positionError($body, $resolved['type'], $resolved['file'], $resolved['path'], $metadata['error']);
+        }
+
+        if (!self::containsDate($metadata, $tjdEt)) {
+            return self::positionError(
+                $body,
+                $resolved['type'],
+                $resolved['file'],
+                $resolved['path'],
+                'julian day is outside ephemeris file range'
+            );
+        }
+
+        $ipl = self::fileBodyNumber($body);
+        $vector = self::rotatedSegmentVector($resolved['path'], $ipl, $tjdEt, $withSpeed);
+
+        if ($vector['rc'] !== Catalog::SE_OK) {
+            return self::positionError($body, $resolved['type'], $resolved['file'], $resolved['path'], $vector['error']);
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'body' => $body,
+            'ipl' => $ipl,
+            'type' => $resolved['type'],
+            'file' => $resolved['file'],
+            'path' => $resolved['path'],
+            'segment' => $vector['segment'],
+            'position' => $vector['position'],
+            'speed' => $vector['speed'],
+            'vector' => $vector['vector'],
+            'metadata' => $metadata,
+            'descriptor' => $vector['descriptor'],
+            'error' => '',
+        ];
+    }
+
+    /**
      * @return array{rc:int, path:string, file:string, version:string, fileLine:string, copyright:string, raw:string, error:string}
      */
     public static function header(string $path): array
@@ -725,7 +782,7 @@ final class EphemerisFiles
         $entry = self::segmentIndexEntry($path, $ipl, $tjdEt);
 
         if ($entry['rc'] !== Catalog::SE_OK) {
-            return self::rotatedCoefficientsErrpr($path, $ipl, $entry['error']);
+            return self::rotatedCoefficientsError($path, $ipl, $entry['error']);
         }
 
         $descriptor = $segment['descriptor'];
@@ -1097,6 +1154,31 @@ final class EphemerisFiles
         sort($files);
 
         return array_values(array_map('basename', $files));
+    }
+
+    private static function fileBodyNumber(int $body): int
+    {
+        if ($body === Catalog::SE_CERES) {
+            return Catalog::SE_MEAN_APOG;
+        }
+
+        if ($body === Catalog::SE_PALLAS) {
+            return Catalog::SE_OSCU_APOG;
+        }
+
+        if ($body === Catalog::SE_JUNO) {
+            return Catalog::SE_EARTH;
+        }
+
+        if ($body === Catalog::SE_VESTA) {
+            return Catalog::SE_CHIRON;
+        }
+
+        if ($body >= Catalog::SE_AST_OFFSET) {
+            return $body - Catalog::SE_AST_OFFSET + Catalog::SE_MEAN_APOG - 1;
+        }
+
+        return $body;
     }
 
     private static function typeForBody(int $body): string
@@ -1564,6 +1646,28 @@ final class EphemerisFiles
             'pav' => 0.0,
             'neval' => 0,
             'nEvaluate' => 0,
+            'descriptor' => null,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function positionError(int $body, string $type, string $file, string $path, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'body' => $body,
+            'ipl' => self::fileBodyNumber($body),
+            'type' => $type,
+            'file' => $file,
+            'path' => $path,
+            'segment' => -1,
+            'position' => [],
+            'speed' => [],
+            'vector' => [],
+            'metadata' => null,
             'descriptor' => null,
             'error' => $error,
         ];
