@@ -51,6 +51,7 @@ final class NatalChartRenderer
             self::circle($center, $center, $houseRadius, 'none', '#94a3b8', 1.0),
             self::renderZodiac($center, $outerRadius, $zodiacRadius),
             self::renderHouses($chart, $center, $outerRadius, $houseRadius),
+            self::renderAngles($chart, $center, $outerRadius, $houseRadius),
             self::renderAspects($chart, $center, $aspectRadius),
             self::renderPoints($chart, $center, $planetRadius),
             '</svg>',
@@ -111,24 +112,89 @@ final class NatalChartRenderer
         return implode("\n", $parts);
     }
 
-    private static function renderPoints(NatalChart $chart, float $center, float $planetRadius): string
+    private static function renderAngles(NatalChart $chart, float $center, float $outerRadius, float $houseRadius): string
     {
+        if (!isset($chart->houses[1], $chart->houses[4], $chart->houses[7], $chart->houses[10])) {
+            return '';
+        }
+
+        $angles = [
+            'ASC' => $chart->houses[1]->cusp,
+            'IC' => $chart->houses[4]->cusp,
+            'DSC' => $chart->houses[7]->cusp,
+            'MC' => $chart->houses[10]->cusp,
+        ];
+
         $parts = [];
-        $slot = 0;
 
-        foreach ($chart->points as $point) {
-            $radius = $planetRadius - ($slot % 3) * 18.0;
-            [$x, $y] = self::point($center, $radius, $point->longitude);
-            $label = self::BODY_GLYPHS[$point->name] ?? $point->name;
-            $retrograde = $point->isRetrograde() ? ' R' : '';
+        foreach ($angles as $label => $longitude) {
+            [$x1, $y1] = self::point($center, $outerRadius, $longitude);
+            [$x2, $y2] = self::point($center, $houseRadius - 12.0, $longitude);
+            [$tx, $ty] = self::point($center, $outerRadius + 16.0, $longitude);
 
-            $parts[] = self::circle($x, $y, 13.0, '#ffffff', '#334155', 1.0);
-            $parts[] = self::text($x, $y + 4.0, $label . $retrograde, 10, '#0f172a', 'middle');
-
-            $slot++;
+            $parts[] = self::line($x1, $y1, $x2, $y2, '#111827', 1.8);
+            $parts[] = self::text($tx, $ty + 4.0, $label, 12, '#111827', 'middle');
         }
 
         return implode("\n", $parts);
+    }
+
+    private static function renderPoints(NatalChart $chart, float $center, float $planetRadius): string
+    {
+        $parts = [];
+        $points = array_values($chart->points);
+        usort(
+            $points,
+            static fn(NatalChartPoint $a, NatalChartPoint $b): int => $a->normalizedLongitude() <=> $b->normalizedLongitude()
+        );
+
+        $layout = self::pointLayout($points);
+
+        foreach ($points as $index => $point) {
+            $radius = $planetRadius - $layout[$index] * 19.0;
+            [$x, $y] = self::point($center, $radius, $point->longitude);
+            [$tickX1, $tickY1] = self::point($center, $planetRadius + 13.0, $point->longitude);
+            [$tickX2, $tickY2] = self::point($center, $planetRadius - 58.0, $point->longitude);
+
+            $label = self::BODY_GLYPHS[$point->name] ?? $point->name;
+            $retrograde = $point->isRetrograde() ? ' R' : '';
+
+            $parts[] = self::line($tickX1, $tickY1, $tickX2, $tickY2, '#cbd5e1', 0.7, 0.85);
+            $parts[] = self::circle($x, $y, 13.0, '#ffffff', '#334155', 1.0);
+            $parts[] = self::text($x, $y + 4.0, $label . $retrograde, 10, '#0f172a', 'middle');
+        }
+
+        return implode("\n", $parts);
+    }
+
+    /**
+     * @param array<int, NatalChartPoint> $points
+     * @return array<int, int>
+     */
+    private static function pointLayout(array $points): array
+    {
+        $layout = [];
+
+        foreach ($points as $index => $point) {
+            $level = 0;
+
+            for ($previous = $index - 1; $previous >= 0; $previous--) {
+                $distance = abs(Angle::difdeg2n(
+                    $point->normalizedLongitude(),
+                    $points[$previous]->normalizedLongitude()
+                ));
+
+                if ($distance > 7.0) {
+                    break;
+                }
+
+                $level = max($level, ($layout[$previous] ?? 0) + 1);
+            }
+
+            $layout[$index] = min($level, 4);
+        }
+
+        return $layout;
     }
 
     private static function renderAspects(NatalChart $chart, float $center, float $aspectRadius): string
@@ -150,7 +216,7 @@ final class NatalChartRenderer
             [$x1, $y1] = self::point($center, $aspectRadius, $first->longitude);
             [$x2, $y2] = self::point($center, $aspectRadius, $second->longitude);
 
-            $parts[] = self::line($x1, $y1, $x2, $y2, self::aspectColor($aspect->angle), 0.9, 0.72);
+            $parts[] = self::line($x1, $y1, $x2, $y2, self::aspectColor($aspect->angle), 0.7, 0.55);
         }
 
         return implode("\n", $parts);
@@ -185,7 +251,7 @@ final class NatalChartRenderer
     private static function circle(float $cx, float $cy, float $r, string $fill, string $stroke, float $strokeWidth): string
     {
         return sprintf(
-            '<circle cx="%.3F" cy="%.3F" r="%.3F" fill="%s" stroke="%s" stroke-width="%.3F">',
+            '<circle cx="%.3F" cy="%.3F" r="%.3F" fill="%s" stroke="%s" stroke-width="%.3F"/>',
             $cx,
             $cy,
             $r,

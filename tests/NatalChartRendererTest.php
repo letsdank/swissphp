@@ -10,6 +10,7 @@ use SwissEph\Catalog;
 use SwissEph\Houses;
 use SwissEph\NatalChartCalculator;
 use SwissEph\NatalChartRenderer;
+use function PHPUnit\Framework\assertStringContainsString;
 
 final class NatalChartRendererTest extends TestCase
 {
@@ -40,6 +41,9 @@ final class NatalChartRendererTest extends TestCase
         self::assertStringContainsString('Sun', $svg);
         self::assertStringContainsString('Moon', $svg);
         self::assertStringEndsWith('</svg>', $svg);
+
+        self::assertStringContainsString('ASC', $svg);
+        assertStringContainsString('MC', $svg);
     }
 
     public function testRenderSvgHasMinimumSize(): void
