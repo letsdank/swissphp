@@ -8,6 +8,12 @@ SwissPHP is a PHP port/reimplementation of core Swiss Ephemeris functionality.
 
 The project is in active development. It already includes a tested calculation core for dates, delta T, sidereal time, coordinates, houses, Moshier planetary and lunar positions, rise/set calculations, phenomena, nodes/apsides, orbital elements, fixed stars and early support for Swiss Ephemeris files.
 
+## Development workflow
+
+This project is an incremental native PHP reimplementation of Swiss Ephemeris.
+The translation and testing workflow is documented in
+[docs/translation-workflow.md](docs/translation-workflow.md).
+
 ## Requirements
 
 - PHP 8.4+
