@@ -80,6 +80,65 @@ final class Syzygy
         return self::nextPhaseUt(self::PHASE_LAST_QUARTER, $tjdUt, $flags);
     }
 
+    /**
+     * @return array{rc:int, tjd:float, targetPhase:float, phaseAngle:float, sunLongitude:float, moonLongitude:float, error:string, attributes:array<int, float>}
+     */
+    public static function nextPhaseEx(
+        float $phase,
+        float $tjdEt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH
+    ): array
+    {
+        $tjd = self::nextPhase($phase, $tjdEt, $flags);
+
+        if ($tjd < $tjdEt) {
+            return self::phaseError($phase, $tjdEt - 1.0, 'Syzygy phase crossing not found.');
+        }
+
+        return self::phaseDetails($phase, $tjd, $flags);
+    }
+
+    /**
+     * @return array{rc:int, tjd:float, targetPhase:float, phaseAngle:float, sunLongitude:float, moonLongitude:float, error:string, attributes:array<int, float>}
+     */
+    public static function nextPhaseExUt(
+        float $phase,
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH
+    ): array
+    {
+        $tjdEt = $tjdUt + DeltaT::deltatEx($tjdUt, $flags);
+        $phaseEt = self::nextPhaseEx($phase, $tjdEt, $flags);
+
+        if ($phaseEt['rc'] === SwissDate::ERR) {
+            $phaseEt['tjd'] = $tjdUt - 1.0;
+
+            return $phaseEt;
+        }
+
+        $phaseEt['tjd'] -= DeltaT::deltatEx($phaseEt['tjd'], $flags);
+
+        return $phaseEt;
+    }
+
+    public static function nextPhaseResult(
+        float $phase,
+        float $tjdEt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH
+    ): SyzygyResult
+    {
+        return SyzygyResult::fromArray(self::nextPhaseEx($phase, $tjdEt, $flags));
+    }
+
+    public static function nextPhaseUtResult(
+        float $phase,
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH
+    ): SyzygyResult
+    {
+        return SyzygyResult::fromArray(self::nextPhaseExUt($phase, $tjdUt, $flags));
+    }
+
     public static function nextPhaseUt(
         float $phase,
         float $tjdUt,
@@ -177,6 +236,38 @@ final class Syzygy
         return ($left + $right) / 2.0;
     }
 
+    /**
+     * @return array{rc:int, tjd:float, targetPhase:float, phaseAngle:float, sunLongitude:float, moonLongitude:float, error:string, attributes:array<int, float>}
+     */
+    private static function phaseDetails(float $phase, float $tjdEt, int $flags): array
+    {
+        $flags = Catalog::normalizeEphemerisFlags($flags) | Catalog::SEFLG_SPEED;
+
+        $moon = Calculator::calcApparentFlags($tjdEt, Catalog::SE_MOON, $flags);
+        $sun = Calculator::calcApparentFlags($tjdEt, Catalog::SE_SUN, $flags);
+
+        if ($moon['rc'] === SwissDate::ERR || $sun['rc'] === SwissDate::ERR) {
+            return self::phaseError($phase, $tjdEt, $moon['error'] !== '' ? $moon['error'] : $sun['error']);
+        }
+
+        $phaseAngle = Angle::degnorm($moon['xx'][0] - $sun['xx'][0]);
+
+        return [
+            'rc' => SwissDate::OK,
+            'tjd' => $tjdEt,
+            'targetPhase' => Angle::degnorm($phase),
+            'phaseAngle' => $phaseAngle,
+            'sunLongitude' => $sun['xx'][0],
+            'moonLongitude' => $moon['xx'][0],
+            'error' => '',
+            'attributes' => [
+                0 => $phaseAngle,
+                1 => $sun['xx'][0],
+                2 => $moon['xx'][0],
+            ],
+        ];
+    }
+
     private static function phaseAngle(float $tjdEt, int $flags): float
     {
         $moon = Calculator::calcApparentFlags($tjdEt, Catalog::SE_MOON, $flags);
@@ -202,11 +293,20 @@ final class Syzygy
         return $phase;
     }
 
-    private static function crossed(float $left, float $right): bool
+    /**
+     * @return array{rc:int, tjd:float, targetPhase:float, phaseAngle:float, sunLongitude:float, moonLongitude:float, error:string, attributes:array<int, float>}
+     */
+    private static function phaseError(float $phase, float $tjd, string $error): array
     {
-        return $left === 0.0
-            || $right === 0.0
-            || ($left < 0.0 && $right > 0.0)
-            || ($left > 0.0 && $right < 0.0);
+        return [
+            'rc' => SwissDate::ERR,
+            'tjd' => $tjd,
+            'targetPhase' => Angle::degnorm($phase),
+            'phaseAngle' => 0.0,
+            'sunLongitude' => 0.0,
+            'moonLongitude' => 0.0,
+            'error' => $error,
+            'attributes' => array_fill(0, 20, 0.0),
+        ];
     }
 }
