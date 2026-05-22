@@ -7,6 +7,7 @@ namespace SwissEph\Tests;
 use PHPUnit\Framework\TestCase;
 use SwissEph\CalculationResult;
 use SwissEph\Catalog;
+use SwissEph\DeltaT;
 use SwissEph\EphemerisFiles;
 use SwissEph\SwissEphemerisPosition;
 use SwissEph\Tests\Support\EphemerisFixtureFactory;
@@ -122,5 +123,40 @@ final class SwissEphemerisPositionTest extends TestCase
         self::assertSame(Catalog::SE_ERR, $result->rc);
         self::assertSame('ephemeris body descriptor not found', $result->error);
         self::assertSame([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], $result->xx);
+    }
+
+    public function testCartesianUtConvertsUtToEt(): void
+    {
+        $tjdUt = 2451545.0 - DeltaT::deltatEx(2451545.0, Catalog::SEFLG_SWIEPH);
+
+        $utVector = SwissEphemerisPosition::cartesianUt(Catalog::SE_MERCURY, $tjdUt);
+        $etVector = SwissEphemerisPosition::cartesian(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertEqualsWithDelta($etVector[0], $utVector[0], 1e-12);
+        self::assertEqualsWithDelta($etVector[1], $utVector[1], 1e-12);
+        self::assertEqualsWithDelta($etVector[2], $utVector[2], 1e-12);
+    }
+
+    public function testPolarUtConvertsUtToEt(): void
+    {
+        $tjdUt = 2451545.0 - DeltaT::deltatEx(2451545.0, Catalog::SEFLG_SWIEPH);
+
+        $ut = SwissEphemerisPosition::polarUt(Catalog::SE_MERCURY, $tjdUt);
+        $et = SwissEphemerisPosition::polar(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertEqualsWithDelta($et[0], $ut[0], 1e-12);
+        self::assertEqualsWithDelta($et[1], $ut[1], 1e-12);
+        self::assertEqualsWithDelta($et[2], $ut[2], 1e-12);
+    }
+
+    public function testPolarUtCalculationResultReturnsCalculationResult(): void
+    {
+        $tjdUt = 2451545.0 - DeltaT::deltatEx(2451545.0, Catalog::SEFLG_SWIEPH);
+
+        $result = SwissEphemerisPosition::polarUtCalculationResult(Catalog::SE_MERCURY, $tjdUt);
+
+        self::assertInstanceOf(CalculationResult::class, $result);
+        self::assertSame(Catalog::SE_OK, $result->rc);
+        self::assertEqualsWithDelta(63.88608736970928, $result->longitude(), 1e-12);
     }
 }

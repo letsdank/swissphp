@@ -79,6 +79,28 @@ final class SwissEphemerisPosition
         return $result;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public static function polarUtResult(int $body, float $tjdUt, bool $withSpeed = true): array
+    {
+        return self::polarResult($body, $tjdUt + DeltaT::deltatEx($tjdUt, Catalog::SEFLG_SWIEPH), $withSpeed);
+    }
+
+    /**
+     * @return array{0:float, 1:float, 2:float, 3:float, 4:float, 5:float}
+     */
+    public static function polarUt(int $body, float $tjdUt, bool $withSpeed = true): array
+    {
+        $result = self::polarUtResult($body, $tjdUt, $withSpeed);
+
+        if ($result['rc'] !== Catalog::SE_OK) {
+            throw new \InvalidArgumentException($result['error']);
+        }
+
+        return $result['xx'];
+    }
+
     public static function polarCalculationResult(
         int   $body,
         float $tjdEt,
@@ -94,12 +116,49 @@ final class SwissEphemerisPosition
         );
     }
 
+    public static function polarUtCalculationResult(
+        int   $body,
+        float $tjdUt,
+        bool  $withSpeed = true
+    ): CalculationResult
+    {
+        $result = self::polarUtResult($body, $tjdUt, $withSpeed);
+
+        return new CalculationResult(
+            $result['rc'],
+            $result['xx'],
+            $result['error'],
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */
     public static function cartesianResult(int $body, float $tjdEt, bool $withSpeed = true): array
     {
         return EphemerisFiles::position($body, $tjdEt, $withSpeed);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function cartesianUtResult(int $body, float $tjdUt, bool $withSpeed = true): array
+    {
+        return self::cartesianResult($body, $tjdUt + DeltaT::deltatEx($tjdUt, Catalog::SEFLG_SWIEPH), $withSpeed);
+    }
+
+    /**
+     * @return array{0:float, 1:float, 2:float, 3:float, 4:float, 5:float}
+     */
+    public static function cartesianUt(int $body, float $tjdUt, bool $withSpeed = true): array
+    {
+        $result = self::cartesianUtResult($body, $tjdUt, $withSpeed);
+
+        if ($result['rc'] !== Catalog::SE_OK) {
+            throw new \InvalidArgumentException($result['error']);
+        }
+
+        return $result['vector'];
     }
 
     public static function isAvailable(int $body, float $tjdEt): bool
