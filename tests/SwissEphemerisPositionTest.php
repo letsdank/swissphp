@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SwissEph\Tests;
 
 use PHPUnit\Framework\TestCase;
+use SwissEph\CalculationResult;
 use SwissEph\Catalog;
 use SwissEph\EphemerisFiles;
 use SwissEph\SwissEphemerisPosition;
@@ -99,5 +100,27 @@ final class SwissEphemerisPositionTest extends TestCase
         $this->expectExceptionMessage('ephemeris body descriptor not found');
 
         SwissEphemerisPosition::cartesian(Catalog::SE_VENUS, 2451545.0);
+    }
+
+    public function testPolarCalculationResultReturnsCalculationResult(): void
+    {
+        $result = SwissEphemerisPosition::polarCalculationResult(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertInstanceOf(CalculationResult::class, $result);
+        self::assertSame(Catalog::SE_OK, $result->rc);
+        self::assertSame('', $result->error);
+        self::assertEqualsWithDelta(63.88608736970928, $result->longitude(), 1e-12);
+        self::assertEqualsWithDelta(7.52222639092815, $result->latitude(), 1e-12);
+        self::assertEqualsWithDelta(0.11458184847522751, $result->distance(), 1e-15);
+    }
+
+    public function testPolarCalculationResultKeepsErrors(): void
+    {
+        $result = SwissEphemerisPosition::polarCalculationResult(Catalog::SE_VENUS, 2451545.0);
+
+        self::assertInstanceOf(CalculationResult::class, $result);
+        self::assertSame(Catalog::SE_ERR, $result->rc);
+        self::assertSame('ephemeris body descriptor not found', $result->error);
+        self::assertSame([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], $result->xx);
     }
 }

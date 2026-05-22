@@ -79,6 +79,21 @@ final class SwissEphemerisPosition
         return $result;
     }
 
+    public static function polarCalculationResult(
+        int   $body,
+        float $tjdEt,
+        bool  $withSpeed = true
+    ): CalculationResult
+    {
+        $result = self::polarResult($body, $tjdEt, $withSpeed);
+
+        return new CalculationResult(
+            $result['rc'],
+            $result['xx'],
+            $result['error']
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */
