@@ -159,4 +159,95 @@ final class SwissEphemerisPositionTest extends TestCase
         self::assertSame(Catalog::SE_OK, $result->rc);
         self::assertEqualsWithDelta(63.88608736970928, $result->longitude(), 1e-12);
     }
+
+    public function testCalculateReturnsPolarDegreesByDefault(): void
+    {
+        $result = SwissEphemerisPosition::calculate(
+            Catalog::SE_MERCURY,
+            2451545.0,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertEqualsWithDelta(63.88608736970928, $result['xx'][0], 1e-12);
+        self::assertEqualsWithDelta(7.52222639092815, $result['xx'][1], 1e-12);
+        self::assertEqualsWithDelta(-1.7938232271609784, $result['xx'][3], 1e-12);
+    }
+
+    public function testCalculateCanReturnRadians(): void
+    {
+        $result = SwissEphemerisPosition::calculate(
+            Catalog::SE_MERCURY,
+            2451545.0,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED | Catalog::SEFLG_RADIANS
+        );
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertEqualsWithDelta(deg2rad(63.88608736970928), $result['xx'][0], 1e-14);
+        self::assertEqualsWithDelta(deg2rad(7.52222639092815), $result['xx'][1], 1e-14);
+        self::assertEqualsWithDelta(deg2rad(-1.7938232271609784), $result['xx'][3], 1e-14);
+    }
+
+    public function testCalculateCanReturnCartesian(): void
+    {
+        $result = SwissEphemerisPosition::calculate(
+            Catalog::SE_MERCURY,
+            2451545.0,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED | Catalog::SEFLG_XYZ
+        );
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertEqualsWithDelta(0.05, $result['xx'][0], 1e-15);
+        self::assertEqualsWithDelta(0.102, $result['xx'][1], 1e-15);
+        self::assertEqualsWithDelta(0.015, $result['xx'][2], 1e-15);
+        self::assertEqualsWithDelta(0.002, $result['xx'][3], 1e-15);
+    }
+
+    public function testCalculateSkipsSpeedWithoutSpeedFlag(): void
+    {
+        $result = SwissEphemerisPosition::calculate(
+            Catalog::SE_MERCURY,
+            2451545.0,
+            Catalog::SEFLG_SWIEPH
+        );
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertEqualsWithDelta(63.88608736970928, $result['xx'][0], 1e-12);
+        self::assertSame(0.0, $result['xx'][3]);
+        self::assertSame(0.0, $result['xx'][4]);
+        self::assertSame(0.0, $result['xx'][5]);
+    }
+
+    public function testCalculateResultReturnsCalculationResult(): void
+    {
+        $result = SwissEphemerisPosition::calculateResult(
+            Catalog::SE_MERCURY,
+            2451545.0,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+
+        self::assertInstanceOf(CalculationResult::class, $result);
+        self::assertSame(Catalog::SE_OK, $result->rc);
+        self::assertEqualsWithDelta(63.88608736970928, $result->longitude(), 1e-12);
+    }
+
+    public function testCalculateUtConvertsUtToEt(): void
+    {
+        $tjdUt = 2451545.0 - DeltaT::deltatEx(2451545.0, Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED);
+
+        $ut = SwissEphemerisPosition::calculateUt(
+            Catalog::SE_MERCURY,
+            $tjdUt,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+        $et = SwissEphemerisPosition::calculate(
+            Catalog::SE_MERCURY,
+            2451545.0,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+
+        self::assertEqualsWithDelta($et['xx'][0], $ut['xx'][0], 1e-12);
+        self::assertEqualsWithDelta($et['xx'][1], $ut['xx'][1], 1e-12);
+        self::assertEqualsWithDelta($et['xx'][2], $ut['xx'][2], 1e-12);
+    }
 }

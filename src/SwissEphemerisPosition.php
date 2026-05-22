@@ -101,6 +101,88 @@ final class SwissEphemerisPosition
         return $result['xx'];
     }
 
+    /**
+     * Evaluates a file-backed position and formats it according to output flags.
+     *
+     * Supported output flags:
+     * - SEFLG_XYZ returns cartesian `[x, y, z, dx, dy, dz]`
+     * - SEFLG_RADIANS returns polar longitude/latitude in radians
+     * - SEFLG_SPEED controls whether speed components are evaluated
+     *
+     * @return array<string, mixed>
+     */
+    public static function calculate(int $body, float $tjdEt, int $flags = Catalog::SEFLG_DEFAULTEPH): array
+    {
+        $withSpeed = Catalog::wantsSpeed($flags);
+
+        if (Catalog::hasFlag($flags, Catalog::SEFLG_XYZ)) {
+            $result = self::cartesianResult($body, $tjdEt, $withSpeed);
+
+            if ($result['rc'] !== Catalog::SE_OK) {
+                $result['xx'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+                return $result;
+            }
+
+            $result['xx'] = $result['vector'];
+
+            return $result;
+        }
+
+        $result = self::polarResult($body, $tjdEt, $withSpeed);
+
+        if ($result['rc'] !== Catalog::SE_OK) {
+            return $result;
+        }
+
+        if (Catalog::hasFlag($flags, Catalog::SEFLG_RADIANS)) {
+            $result['xx'][0] = deg2rad($result['xx'][0]);
+            $result['xx'][1] = deg2rad($result['xx'][1]);
+            $result['xx'][3] = deg2rad($result['xx'][3]);
+            $result['xx'][4] = deg2rad($result['xx'][4]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function calculateUt(int $body, float $tjdUt, int $flags = Catalog::SEFLG_DEFAULTEPH): array
+    {
+        return self::calculate($body, $tjdUt + DeltaT::deltatEx($tjdUt, $flags), $flags);
+    }
+
+    public static function calculateResult(
+        int   $body,
+        float $tjdEt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH
+    ): CalculationResult
+    {
+        $result = self::calculate($body, $tjdEt, $flags);
+
+        return new CalculationResult(
+            $result['rc'],
+            $result['xx'],
+            $result['error']
+        );
+    }
+
+    public static function calculateUtResult(
+        int   $body,
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH
+    ): CalculationResult
+    {
+        $result = self::calculateUt($body, $tjdUt, $flags);
+
+        return new CalculationResult(
+            $result['rc'],
+            $result['xx'],
+            $result['error']
+        );
+    }
+
     public static function polarCalculationResult(
         int   $body,
         float $tjdEt,
