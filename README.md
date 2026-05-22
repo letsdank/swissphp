@@ -21,7 +21,9 @@ The translation and testing workflow is documented in
 
 ## Installation
 
-Packagist publication is planned. For now, install from source:
+The package metadata is prepared for Composer usage, but tagged releases and
+Packagist publication are still pending. Until the first release is tagged,
+install from source.
 
 ```bash
 git clone https://github.com/letsdank/swissphp.git
@@ -79,11 +81,12 @@ Implemented areas include:
 - Nodes and apsides
 - Orbital elements
 - Fixed stars
-- Initial ephemeris file path and header support
+- Aspects and chart helper objects
+- Initial Swiss Ephemeris file reader foundation
 
 Still in progress:
 
-- Full Swiss Ephemeris .se1 binary coefficient reader
+- Full integration of `.se1` ephemeris files into the main calculation pipeline
 - JPL ephemeris support
 - Full asteroid file support
 - Fill fixed-star catalog support
