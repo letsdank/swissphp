@@ -13,6 +13,8 @@ use SwissEph\Coordinates;
 use SwissEph\Crossing;
 use SwissEph\DeltaT;
 use SwissEph\EarthPosition;
+use SwissEph\Eclipse;
+use SwissEph\EclipseResult;
 use SwissEph\MeanApogee;
 use SwissEph\MeanNode;
 use SwissEph\MoshierMoon;
@@ -81,6 +83,31 @@ final class CalculatorTest extends TestCase
         self::assertSame(
             UtcTime::jdut1ToUtc(2457754.4999952596, SwissDate::GREGORIAN_CALENDAR),
             Calculator::jdut1ToUtc(2457754.4999952596, SwissDate::GREGORIAN_CALENDAR)
+        );
+    }
+
+    public function testCalculatorLunEclipseHowDelegatesToEclipse(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+
+        self::assertSame(
+            Eclipse::lunarHow($tjdUt),
+            Calculator::lunEclipseHow($tjdUt)
+        );
+    }
+
+    public function testCalculatorLunEclipseHowResultDelegatesToEclipse(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+
+        $result = Calculator::lunEclipseHowResult($tjdUt);
+
+        self::assertInstanceOf(EclipseResult::class, $result);
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(
+            Eclipse::lunarHowResult($tjdUt)->umbralMagnitude(),
+            $result->umbralMagnitude(),
+            1e-12
         );
     }
 

@@ -169,6 +169,27 @@ final class Calculator
     }
 
     /**
+     * Geocentric subset of swe_lun_eclipse_how().
+     *
+     * @return array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunEclipseHow(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH
+    ): array
+    {
+        return Eclipse::lunarHow($tjdUt, $flags);
+    }
+
+    public static function lunEclipseHowResult(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH
+    ): EclipseResult
+    {
+        return Eclipse::lunarHowResult($tjdUt, $flags);
+    }
+
+    /**
      * Apparent geocentric ecliptic position for Sun and Moshier planets.
      *
      * This is an explicit apparent API and does not change swe_calc()-style calc().
