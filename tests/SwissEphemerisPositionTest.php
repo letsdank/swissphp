@@ -29,6 +29,18 @@ final class SwissEphemerisPositionTest extends TestCase
         self::assertEqualsWithDelta(0.0, $vector[5], 1e-15);
     }
 
+    public function testPolarReturnsEclipticCoordinatesFromEphemerisFiles(): void
+    {
+        $xx = SwissEphemerisPosition::polar(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertEqualsWithDelta(63.88608736970928, $xx[0], 1e-12);
+        self::assertEqualsWithDelta(7.52222639092815, $xx[1], 1e-12);
+        self::assertEqualsWithDelta(0.11458184847522751, $xx[2], 1e-15);
+        self::assertEqualsWithDelta(-1.7938232271609784, $xx[3], 1e-12);
+        self::assertEqualsWithDelta(0.17748873023430972, $xx[4], 1e-12);
+        self::assertEqualsWithDelta(-0.002688034833602718, $xx[5], 1e-15);
+    }
+
     public function testCartesianCanSkipSpeed(): void
     {
         $vector = SwissEphemerisPosition::cartesian(Catalog::SE_MERCURY, 2451545.0, false);
@@ -37,6 +49,27 @@ final class SwissEphemerisPositionTest extends TestCase
         self::assertSame(0.0, $vector[3]);
         self::assertSame(0.0, $vector[4]);
         self::assertSame(0.0, $vector[5]);
+    }
+
+    public function testPolarCanSkipSpeed(): void
+    {
+        $xx = SwissEphemerisPosition::polar(Catalog::SE_MERCURY, 2451545.0, false);
+
+        self::assertEqualsWithDelta(63.88608736970928, $xx[0], 1e-12);
+        self::assertEqualsWithDelta(7.52222639092815, $xx[1], 1e-12);
+        self::assertEqualsWithDelta(0.11458184847522751, $xx[2], 1e-15);
+        self::assertSame(0.0, $xx[3]);
+        self::assertSame(0.0, $xx[4]);
+        self::assertSame(0.0, $xx[5]);
+    }
+
+    public function testPolarResultKeepsErrorContext(): void
+    {
+        $result = SwissEphemerisPosition::polarResult(Catalog::SE_VENUS, 2451545.0);
+
+        self::assertSame(Catalog::SE_ERR, $result['rc']);
+        self::assertSame('ephemeris body descriptor not found', $result['error']);
+        self::assertSame([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], $result['xx']);
     }
 
     public function testCartesianResultKeepsFileContext(): void

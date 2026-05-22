@@ -34,6 +34,52 @@ final class SwissEphemerisPosition
     }
 
     /**
+     * Returns ecliptic polar coordinates `[longitude, latitude, distance, dLon, dLat, dDist]`.
+     *
+     * Longitude and latitude are returned in degrees. Speeds are returned in
+     * degrees/day for angular components and AU/day for distance.
+     *
+     * @return array{0:float, 1:float, 2:float, 3:float, 4:float, 5:float}
+     */
+    public static function polar(int $body, float $tjdEt, bool $withSpeed = true): array
+    {
+        $result = self::polarResult($body, $tjdEt, $withSpeed);
+
+        if ($result['rc'] !== Catalog::SE_OK) {
+            throw new \InvalidArgumentException($result['error']);
+        }
+
+        return $result['xx'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function polarResult(int $body, float $tjdEt, bool $withSpeed = true): array
+    {
+        $result = self::cartesianResult($body, $tjdEt, $withSpeed);
+
+        if ($result['rc'] !== Catalog::SE_OK) {
+            $result['xx'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+            return $result;
+        }
+
+        $polar = Coordinates::cartpolSp($result['vector']);
+
+        $result['xx'] = [
+            Angle::degnorm(rad2deg($polar[0])),
+            rad2deg($polar[1]),
+            $polar[2],
+            rad2deg($polar[3]),
+            rad2deg($polar[4]),
+            $polar[5],
+        ];
+
+        return $result;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public static function cartesianResult(int $body, float $tjdEt, bool $withSpeed = true): array
