@@ -111,6 +111,17 @@ final class CalculatorTest extends TestCase
         );
     }
 
+    public function testCalculatorLunEclipseHowPassesObserver(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+        $observer = new Observer(13.4050, 52.5200, 34.0);
+
+        self::assertSame(
+            Eclipse::lunarHow($tjdUt, Catalog::SEFLG_DEFAULTEPH, $observer),
+            Calculator::lunEclipseHow($tjdUt, Catalog::SEFLG_DEFAULTEPH, $observer)
+        );
+    }
+
     public function testCalcSunReturnsSolarPositionWithSpeed(): void
     {
         $tjdEt = 2451545.000738760;

@@ -174,19 +174,25 @@ final class Calculator
      * @return array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string}
      */
     public static function lunEclipseHow(
-        float $tjdUt,
-        int   $flags = Catalog::SEFLG_DEFAULTEPH
+        float     $tjdUt,
+        int       $flags = Catalog::SEFLG_DEFAULTEPH,
+        ?Observer $observer = null,
+        float     $pressure = 0.0,
+        float     $temperature = 10.0,
     ): array
     {
-        return Eclipse::lunarHow($tjdUt, $flags);
+        return Eclipse::lunarHow($tjdUt, $flags, $observer, $pressure, $temperature);
     }
 
     public static function lunEclipseHowResult(
-        float $tjdUt,
-        int   $flags = Catalog::SEFLG_DEFAULTEPH
+        float     $tjdUt,
+        int       $flags = Catalog::SEFLG_DEFAULTEPH,
+        ?Observer $observer = null,
+        float     $pressure = 0.0,
+        float     $temperature = 10.0,
     ): EclipseResult
     {
-        return Eclipse::lunarHowResult($tjdUt, $flags);
+        return Eclipse::lunarHowResult($tjdUt, $flags, $observer, $pressure, $temperature);
     }
 
     /**

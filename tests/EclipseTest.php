@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use SwissEph\Catalog;
 use SwissEph\Eclipse;
 use SwissEph\EclipseResult;
+use SwissEph\Observer;
 use SwissEph\SwissDate;
 
 final class EclipseTest extends TestCase
@@ -67,5 +68,55 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(1.3460034547997217, $result->umbralMagnitude(), 1e-12);
         self::assertEqualsWithDelta(2.3287133012900636, $result->penumbralMagnitude(), 1e-12);
         self::assertEqualsWithDelta(0.28687222415874203, $result->distanceFromOpposition(), 1e-12);
+    }
+
+    public function testLunarHowAddsLocalMoonAzimuthAndAltitude(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+
+        $result = Eclipse::lunarHow(
+            $tjdUt,
+            Catalog::SEFLG_DEFAULTEPH,
+            new Observer(13.4050, 52.5200, 34.0)
+        );
+
+        self::assertSame(Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertEqualsWithDelta(96.07878510708167, $result['attr'][4], 1e-12);
+        self::assertEqualsWithDelta(20.514613252028976, $result['attr'][5], 1e-12);
+        self::assertEqualsWithDelta(20.557682179695288, $result['attr'][6], 1e-12);
+    }
+
+    public function testLunarHowReturnsZeroWhenLocalEclipseIsBelowHorizon(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+
+        $result = Eclipse::lunarHow(
+            $tjdUt,
+            Catalog::SEFLG_DEFAULTEPH,
+            new Observer(180.0, 0.0, 0.0)
+        );
+
+        self::assertSame(0, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(1.3460034547997217, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(248.84800223233083, $result['attr'][4], 1e-12);
+        self::assertEqualsWithDelta(-20.290458167839667, $result['attr'][5], 1e-12);
+        self::assertEqualsWithDelta(-20.290458167839667, $result['attr'][6], 1e-12);
+    }
+
+    public function testLunarHowRejectsInvalidObserverAltitude(): void
+    {
+        $result = Eclipse::lunarHow(
+            2451545.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            new Observer(0.0, 0.0, 30000.0)
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame(
+            'location for eclipses must be between -500 and 25000 m above sea',
+            $result['error']
+        );
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
     }
 }

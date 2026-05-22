@@ -27,12 +27,34 @@ final class Eclipse
      * @return array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string}
      */
     public static function lunarHow(
-        float $tjdUt,
-        int   $flags = Catalog::SEFLG_DEFAULTEPH
+        float     $tjdUt,
+        int       $flags = Catalog::SEFLG_DEFAULTEPH,
+        ?Observer $observer = null,
+        float     $pressure = 0.0,
+        float     $temperature = 10.0,
     ): array
     {
         $attr = array_fill(0, 20, 0.0);
         $dcore = array_fill(0, 10, 0.0);
+
+        if (
+            $observer !== null
+            && (
+                $observer->altitude < Observer::MIN_GEOGRAPHIC_ALTITUDE
+                || $observer->altitude > Observer::MAX_GEOGRAPHIC_LATITUDE
+            )
+        ) {
+            return [
+                'rc' => SwissDate::ERR,
+                'attr' => $attr,
+                'dcore' => $dcore,
+                'error' => sprintf(
+                    'location for eclipses must be between %.0f and %.0f m above sea',
+                    Observer::MIN_GEOGRAPHIC_ALTITUDE,
+                    Observer::MAX_GEOGRAPHIC_LATITUDE
+                ),
+            ];
+        }
 
         $calcFlags = Catalog::normalizeEphemerisFlags($flags)
             | Catalog::SEFLG_SPEED
@@ -120,6 +142,7 @@ final class Eclipse
             $attr[0] = 0.0;
         }
 
+        $geocentricRc = $rc;
         $attr[8] = $attr[0];
         $attr[1] = ($D0 / 2.0 - $r0 + self::RMOON) / self::DMOON;
 
@@ -130,20 +153,57 @@ final class Eclipse
         $attr[9] = -99999999.0;
         $attr[10] = -99999999.0;
 
+        if ($observer !== null) {
+            $moonEquatorial = Calculator::calcUt(
+                $tjdUt,
+                Catalog::SE_MOON,
+                $calcFlags & ~Catalog::SEFLG_XYZ
+            );
+
+            if ($moonEquatorial['rc'] === SwissDate::ERR) {
+                return [
+                    'rc' => SwissDate::ERR,
+                    'attr' => $attr,
+                    'dcore' => $dcore,
+                    'error' => $moonEquatorial['error'],
+                ];
+            }
+
+            $horizontal = AzimuthAltitude::azalt(
+                $tjdUt,
+                Catalog::SE_EQU2HOR,
+                $observer,
+                $pressure,
+                $temperature,
+                $moonEquatorial['xx']
+            );
+
+            $attr[4] = $horizontal[0];
+            $attr[5] = $horizontal[1];
+            $attr[6] = $horizontal[2];
+
+            if ($rc !== 0 && $horizontal[2] <= 0.0) {
+                $rc = 0;
+            }
+        }
+
         return [
             'rc' => $rc,
             'attr' => $attr,
             'dcore' => $dcore,
-            'error' => $rc === 0 ? sprintf('no lunar eclipse at tjd = %.6F', $tjdUt) : '',
+            'error' => $geocentricRc === 0 ? sprintf('no lunar eclipse at tjd = %.6F', $tjdUt) : '',
         ];
     }
 
     public static function lunarHowResult(
-        float $tjdUt,
-        int   $flags = Catalog::SEFLG_DEFAULTEPH
+        float     $tjdUt,
+        int       $flags = Catalog::SEFLG_DEFAULTEPH,
+        ?Observer $observer = null,
+        float     $pressure = 0.0,
+        float     $temperature = 10.0,
     ): EclipseResult
     {
-        return EclipseResult::fromArray(self::lunarHow($tjdUt, $flags));
+        return EclipseResult::fromArray(self::lunarHow($tjdUt, $flags, $observer, $pressure, $temperature));
     }
 
     /**
