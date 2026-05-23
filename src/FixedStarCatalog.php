@@ -169,10 +169,7 @@ final class FixedStarCatalog
         $name = $parts[0];
         $nominalName = $parts[1];
 
-        $aliases = [];
-        if ($nominalName !== '' && self::normalizeName($nominalName) !== self::normalizeName($name)) {
-            $aliases[] = $nominalName;
-        }
+        $aliases = self::aliasesFromNames($name, $nominalName);
 
         return self::normalizeStar([
             'name' => $name,
@@ -257,5 +254,37 @@ final class FixedStarCatalog
         $seconds = (float)($parts[2] ?? 0.0);
 
         return $sign * ($degrees + $minutes / 60.0 + $seconds / 3600.0);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function aliasesFromNames(string $name, string $nominalName): array
+    {
+        $aliases = [];
+
+        foreach ([$nominalName, $name] as $value) {
+            $value = trim($value);
+
+            if ($value === '') {
+                continue;
+            }
+
+            foreach (preg_split('/[,;]+/', $value) ?: [] as $part) {
+                $part = trim($part);
+
+                if ($part === '') {
+                    continue;
+                }
+
+                if (self::normalizeName($part) === self::normalizeName($name)) {
+                    continue;
+                }
+
+                $aliases[self::normalizeName($part)] = $part;
+            }
+        }
+
+        return array_values($aliases);
     }
 }
