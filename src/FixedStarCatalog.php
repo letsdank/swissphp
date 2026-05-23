@@ -93,9 +93,9 @@ final class FixedStarCatalog
         $lines = preg_split('/\r\n|\n|\r/', $contents) ?: [];
 
         foreach ($lines as $line) {
-            $line = trim($line);
+            $line = trim(self::stripInlineComment($line));
 
-            if ($line === '' || str_starts_with($line, '#')) {
+            if ($line === '') {
                 continue;
             }
 
@@ -254,6 +254,27 @@ final class FixedStarCatalog
         $seconds = (float)($parts[2] ?? 0.0);
 
         return $sign * ($degrees + $minutes / 60.0 + $seconds / 3600.0);
+    }
+
+    private static function stripInlineComment(string $line): string
+    {
+        $inQuote = false;
+        $length = strlen($line);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $line[$i];
+
+            if ($char === '"') {
+                $inQuote = !$inQuote;
+                continue;
+            }
+
+            if (!$inQuote && $char === '#') {
+                return rtrim(substr($line, 0, $i));
+            }
+        }
+
+        return $line;
     }
 
     /**

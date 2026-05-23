@@ -146,4 +146,30 @@ final class FixedStarCatalogTest extends TestCase
         self::assertNotNull($star);
         self::assertSame('Sirius;Dog Star', $star['name']);
     }
+
+    public function testCatalogStringIgnoresFullLineAndInlineComments(): void
+    {
+        $catalog = FixedStarCatalog::fromString(<<<TXT
+        # header comment
+        Sirius|Dog Star|101.287155333|-16.716115861|-546.01|-1223.07|379.21|1.46 # inline comment
+        
+        # another comment
+        Aldebaran|alpha Tauri|68.98016279|16.50930235|62.78|-188.94|48.94|0.87
+        TXT
+        );
+
+        self::assertSame(['Sirius', 'Aldebaran'], $catalog->names());
+        self::assertTrue($catalog->exists('dog-star'));
+        self::assertTrue($catalog->exists('alpha-tauri'));
+    }
+
+    public function testInlineCommentMarkerInsideQuotedCsvFieldIsPreserved(): void
+    {
+        $catalog = FixedStarCatalog::fromString(
+            '"Hash # Star",hash alias,2000,10.0,20.0,0.0,0.0,0.0,100.0,2.0 # trailing comment'
+        );
+
+        self::assertSame(['Hash # Star'], $catalog->names());
+        self::assertTrue($catalog->exists('hash alias'));
+    }
 }
