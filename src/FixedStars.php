@@ -65,6 +65,8 @@ final class FixedStars
 
     private static ?FixedStarCatalog $builtInCatalog = null;
 
+    private static ?string $catalogPath = null;
+
     public static function setCatalog(?FixedStarCatalog $catalog): void
     {
         self::$catalog = $catalog;
@@ -80,9 +82,26 @@ final class FixedStars
         self::$catalog = FixedStarCatalog::fromFile($path);
     }
 
+    public static function setCatalogPath(?string $path): void
+    {
+        self::$catalogPath = $path;
+        self::$catalog = null;
+    }
+
+    public static function catalogPath(): ?string
+    {
+        return self::$catalogPath;
+    }
+
     public static function resetCatalog(): void
     {
         self::$catalog = null;
+    }
+
+    public static function resetCatalogConfiguration(): void
+    {
+        self::$catalog = null;
+        self::$catalogPath = null;
     }
 
     /**
@@ -210,7 +229,19 @@ final class FixedStars
 
     private static function activeCatalog(): FixedStarCatalog
     {
-        return self::$catalog ?? self::builtInCatalog();
+        if (self::$catalog !== null) {
+            return self::$catalog;
+        }
+
+        $path = self::$catalogPath ?? getenv('SWISSPHP_FIXED_STAR_CATALOG') ?: null;
+
+        if ($path !== null && is_file($path)) {
+            self::$catalog = FixedStarCatalog::fromFile($path);
+
+            return self::$catalog;
+        }
+
+        return self::builtInCatalog();
     }
 
     private static function builtInCatalog(): FixedStarCatalog
