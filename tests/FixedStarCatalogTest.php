@@ -172,4 +172,40 @@ final class FixedStarCatalogTest extends TestCase
         self::assertSame(['Hash # Star'], $catalog->names());
         self::assertTrue($catalog->exists('hash alias'));
     }
+
+    public function testCatalogRejectsDuplicateStarNames(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('duplicate fixed star name "sirius"');
+
+        FixedStarCatalog::fromString(<<<TXT
+            Sirius||101.0|-16.5|0.0|0.0|100.0|-1.0
+            Sirius||102.0|-15.0|0.0|0.0|100.0|-1.0
+        TXT
+        );
+    }
+
+    public function testCatalogRejectsDuplicateAliases(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('duplicate fixed star alias "shared alias"');
+
+        FixedStarCatalog::fromString(<<<TXT
+        Sirius|shared alias|101.0|-16.5|0.0|0.0|100.0|-1.0
+        Aldebaran|shared alias|68.0|16.0|0.0|0.0|50.0|1.0
+        TXT
+        );
+    }
+
+    public function testCatalogRejectsAliasConflictingWithExistingName(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('fixed star alias "Sirius" conflicts with existing star name');
+
+        FixedStarCatalog::fromString(<<<TXT
+        Sirius||101.0|-16.0|0.0|0.0|100.0|-1.0
+        Aldebaran|Sirius|68.0|16.0|0.0|0.0|50.0|1.0
+        TXT
+        );
+    }
 }
