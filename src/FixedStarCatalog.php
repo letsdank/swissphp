@@ -27,7 +27,33 @@ final class FixedStarCatalog
     public function add(array $star): void
     {
         $normalized = self::normalizeStar($star);
-        $this->stars[self::normalizeName($normalized['name'])] = $normalized;
+        $nameKey = self::normalizeName($normalized['name']);
+
+        if (isset($this->stars[$nameKey])) {
+            throw new \InvalidArgumentException(sprintf('duplicate fixed star name "%s"', $normalized['name']));
+        }
+
+        foreach ($normalized['aliases'] as $alias) {
+            $aliasKey = self::normalizeName($alias);
+
+            if ($aliasKey === $nameKey) {
+                continue;
+            }
+
+            if (isset($this->stars[$aliasKey])) {
+                throw new \InvalidArgumentException(sprintf('fixed star alias "%s" conflicts with existing star name', $alias));
+            }
+
+            foreach ($this->stars as $existing) {
+                foreach ($existing['aliases'] as $existingAlias) {
+                    if (self::normalizeName($existingAlias) === $aliasKey) {
+                        throw new \InvalidArgumentException(sprintf('duplicate fixed star alias "%s"', $alias));
+                    }
+                }
+            }
+        }
+
+        $this->stars[$nameKey] = $normalized;
     }
 
     /**
