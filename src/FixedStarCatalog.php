@@ -177,8 +177,8 @@ final class FixedStarCatalog
         return self::normalizeStar([
             'name' => $name,
             'aliases' => $aliases,
-            'ra' => (float)$parts[3],
-            'dec' => (float)$parts[4],
+            'ra' => self::parseRightAscension($parts[3]),
+            'dec' => self::parseDeclination($parts[4]),
             'pmRa' => (float)$parts[5],
             'pmDec' => (float)$parts[6],
             'parallax' => (float)$parts[8],
@@ -210,5 +210,52 @@ final class FixedStarCatalog
         $name = str_replace(['_', '-'], ' ', $name);
 
         return preg_replace('/\s+/', ' ', $name) ?? $name;
+    }
+
+    private static function parseRightAscension(string $value): float
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return 0.0;
+        }
+
+        if (!str_contains($value, ' ') && !str_contains($value, ':')) {
+            return (float)$value;
+        }
+
+        $parts = preg_split('/[:\s]+/', $value) ?: [];
+        $parts = array_values(array_filter($parts, static fn(string $part): bool => $part !== ''));
+
+        $hours = (float)($parts[0] ?? 0.0);
+        $minutes = (float)($parts[1] ?? 0.0);
+        $seconds = (float)($parts[2] ?? 0.0);
+
+        return ($hours + $minutes / 60.0 + $seconds / 3600.0) * 15.0;
+    }
+
+    private static function parseDeclination(string $value): float
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return 0.0;
+        }
+
+        if (!str_contains($value, ' ') && !str_contains($value, ':')) {
+            return (float)$value;
+        }
+
+        $sign = str_starts_with($value, '-') ? -1.0 : 1.0;
+        $value = ltrim($value, '+-');
+
+        $parts = preg_split('/[:\s]+/', $value) ?: [];
+        $parts = array_values(array_filter($parts, static fn(string $part): bool => $part !== ''));
+
+        $degrees = abs((float)($parts[0] ?? 0.0));
+        $minutes = (float)($parts[1] ?? 0.0);
+        $seconds = (float)($parts[2] ?? 0.0);
+
+        return $sign * ($degrees + $minutes / 60.0 + $seconds / 3600.0);
     }
 }

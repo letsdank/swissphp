@@ -108,4 +108,25 @@ final class FixedStarCatalogTest extends TestCase
         self::assertSame(379.21, $star['parallax']);
         self::assertSame(-1.46, $star['mag']);
     }
+
+    public function testSwissEphemerisCsvLineCanParseSexagesimalCoordinates(): void
+    {
+        $star = FixedStarCatalog::parseLine(
+            'Sirius,alpha Canis Majoris,2000,06 46 08.91728,-16 42 58.0171,-546.01,-1223.07,-5.5,379.21,-1.46'
+        );
+
+        self::assertSame('Sirius', $star['name']);
+        self::assertEqualsWithDelta(181.28715533333334, $star['ra'], 1e-12);
+        self::assertEqualsWithDelta(-16.71611586111111, $star['dec'], 1e-12);
+    }
+
+    public function testSwissEphemerisCsvLineCanParseColonSeparatedCoordinates(): void
+    {
+        $star = FixedStarCatalog::parseLine(
+            'Sirius,alpha Canis Majoris,2000,06:45:08.91728,-16:42:58.0171,-546.01,-1223.07,-5.5,379.21,-1.46'
+        );
+
+        self::assertEqualsWithDelta(101.28715533333334, $star['ra'], 1e-12);
+        self::assertEqualsWithDelta(-16.17611586111111, $star['dec'], 1e-12);
+    }
 }
