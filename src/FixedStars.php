@@ -61,6 +61,30 @@ final class FixedStars
         ],
     ];
 
+    private static ?FixedStarCatalog $catalog = null;
+
+    private static ?FixedStarCatalog $builtInCatalog = null;
+
+    public static function setCatalog(?FixedStarCatalog $catalog): void
+    {
+        self::$catalog = $catalog;
+    }
+
+    public static function setCatalogFromString(string $contents): void
+    {
+        self::$catalog = FixedStarCatalog::fromString($contents);
+    }
+
+    public static function setCatalogFromFile(string $path): void
+    {
+        self::$catalog = FixedStarCatalog::fromFile($path);
+    }
+
+    public static function resetCatalog(): void
+    {
+        self::$catalog = null;
+    }
+
     /**
      * Swiss Ephemeris compatible subset of swe_fixstar().
      *
@@ -164,19 +188,38 @@ final class FixedStars
     }
 
     /**
-     * @return array<int, string>
+     * @return list<string>
      */
     public static function names(): array
     {
-        return array_map(
-            static fn(array $star): string => $star['name'],
-            array_values(self::CATALOG)
-        );
+        return self::activeCatalog()->names();
     }
 
     public static function exists(string $name): bool
     {
         return self::find($name) !== null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function find(string $name): ?array
+    {
+        return self::activeCatalog()->find($name);
+    }
+
+    private static function activeCatalog(): FixedStarCatalog
+    {
+        return self::$catalog ?? self::builtInCatalog();
+    }
+
+    private static function builtInCatalog(): FixedStarCatalog
+    {
+        if (self::$builtInCatalog === null) {
+            self::$builtInCatalog = new FixedStarCatalog(array_values(self::CATALOG));
+        }
+
+        return self::$builtInCatalog;
     }
 
     /**
@@ -268,36 +311,6 @@ final class FixedStars
         }
 
         return $position;
-    }
-
-    /**
-     * @return array{name:string, aliases:array<int, string>, ra:float, dec:float, pmRa:float, pmDec:float, parallax:float, mag:float}|null
-     */
-    private static function find(string $name): ?array
-    {
-        $key = self::normalizeName($name);
-
-        if (isset(self::CATALOG[$key])) {
-            return self::CATALOG[$key];
-        }
-
-        foreach (self::CATALOG as $star) {
-            foreach ($star['aliases'] as $alias) {
-                if (self::normalizeName($alias) === $key) {
-                    return $star;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static function normalizeName(string $name): string
-    {
-        $name = strtolower(trim($name));
-        $name = str_replace(['_', '-'], ' ', $name);
-
-        return preg_replace('/\s+/', ' ', $name) ?? $name;
     }
 
     /**
