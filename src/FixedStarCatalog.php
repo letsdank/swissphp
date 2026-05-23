@@ -107,7 +107,7 @@ final class FixedStarCatalog
 
     /**
      * Simple CSV-like format:
-     * name|aliases|ra|dec|pmRa|pmDec|parallax|msg
+     * name|aliases|ra|dec|pmRa|pmDec|parallax|mag
      *
      * aliases are comma-separated. RA/Dec are degrees, proper motions are
      * milliarcseconds/year, parallax is milliarcseconds.
@@ -132,7 +132,7 @@ final class FixedStarCatalog
             'ra' => (float)$parts[2],
             'dec' => (float)$parts[3],
             'pmRa' => (float)($parts[4] ?? 0.0),
-            'paDec' => (float)($parts[5] ?? 0.0),
+            'pmDec' => (float)($parts[5] ?? 0.0),
             'parallax' => (float)($parts[6] ?? 0.0),
             'mag' => (float)($parts[7] ?? 0.0),
         ]);
