@@ -215,4 +215,27 @@ final class FixedStarsTest extends TestCase
 
         self::assertSame(['Sirius', 'Aldebaran', 'Regulus', 'Spica'], FixedStars::names());
     }
+
+    public function testCatalogCanBeLoadedFromConfiguredPath(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'swissphp-fixed-stars-');
+        self::assertIsString($path);
+
+        file_put_contents($path, 'Path Star|path alias|15.0|25.0|0.0|0.0|50.0|3.5');
+
+        try {
+            FixedStars::setCatalogPath($path);
+
+            self::assertSame(['Path Star'], FixedStars::names());
+            self::assertTrue(FixedStars::exists('path-alias'));
+
+            $result = FixedStars::fixstarMagnitude('path alias');
+
+            self::assertSame(SwissDate::OK, $result['rc']);
+            self::assertSame('Path Star', $result['star']);
+            self::assertSame(3.5, $result['mag']);
+        } finally {
+            @unlink($path);
+        }
+    }
 }
