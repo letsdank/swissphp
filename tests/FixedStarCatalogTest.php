@@ -92,4 +92,20 @@ final class FixedStarCatalogTest extends TestCase
         self::assertSame('alpha canis majoris', FixedStarCatalog::normalizeName(' alpha-canis_majoris '));
         self::assertSame('dog star', FixedStarCatalog::normalizeName('dog   star'));
     }
+
+    public function testSwissEphemerisCsvLineCanBeParsed(): void
+    {
+        $star = FixedStarCatalog::parseLine(
+            'Sirius,alpha Canis Majoris,2000,101.287155333,-16.716115861,-546.01,-1223.07,-5.5,379.21,-1.46'
+        );
+
+        self::assertSame('Sirius', $star['name']);
+        self::assertSame(['alpha Canis Majoris'], $star['aliases']);
+        self::assertSame(101.287155333, $star['ra']);
+        self::assertSame(-16.716115861, $star['dec']);
+        self::assertSame(-546.01, $star['pmRa']);
+        self::assertSame(-1223.07, $star['pmDec']);
+        self::assertSame(379.21, $star['parallax']);
+        self::assertSame(-1.46, $star['mag']);
+    }
 }

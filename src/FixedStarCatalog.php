@@ -105,6 +105,13 @@ final class FixedStarCatalog
         return $catalog;
     }
 
+    public static function parseLine(string $line): array
+    {
+        return str_contains($line, '|')
+            ? self::parsePipeLine($line)
+            : self::parseSwissLine($line);
+    }
+
     /**
      * Simple CSV-like format:
      * name|aliases|ra|dec|pmRa|pmDec|parallax|mag
@@ -114,7 +121,7 @@ final class FixedStarCatalog
      *
      * @return array{name: string, aliases:array<int, string>, ra:float, dec:float, pmRa:float, pmDec:float, parallax:float, mag:float}
      */
-    public static function parseLine(string $line): array
+    private static function parsePipeLine(string $line): array
     {
         $parts = array_map('trim', explode('|', $line));
 
@@ -135,6 +142,47 @@ final class FixedStarCatalog
             'pmDec' => (float)($parts[5] ?? 0.0),
             'parallax' => (float)($parts[6] ?? 0.0),
             'mag' => (float)($parts[7] ?? 0.0),
+        ]);
+    }
+
+    /**
+     * Swiss Ephemeris fixed star catalog rows are comma-separated.
+     *
+     * Supported compact shape:
+     * name,nomname,epoch,ra,dec,pmRa,pmDec,radVel,parallax,mag
+     *
+     * RA/Dec are expected in decimal degrees here. Sexagesimal support can be
+     * added separately once we lock a real fixture from sefstars.txt.
+     *
+     * @return array{name: string, aliases:array<int, string>, ra:float, dec:float, pmRa:float, pmDec:float, parallax:float, mag:float}
+     */
+    private static function parseSwissLine(string $line): array
+    {
+        $parts = str_getcsv($line);
+
+        if (count($parts) < 10) {
+            throw new \InvalidArgumentException('fixed star catalog CSV line must contain at least 10 fields');
+        }
+
+        $parts = array_map(static fn(string $value) => trim($value), $parts);
+
+        $name = $parts[0];
+        $nominalName = $parts[1];
+
+        $aliases = [];
+        if ($nominalName !== '' && self::normalizeName($nominalName) !== self::normalizeName($name)) {
+            $aliases[] = $nominalName;
+        }
+
+        return self::normalizeStar([
+            'name' => $name,
+            'aliases' => $aliases,
+            'ra' => (float)$parts[3],
+            'dec' => (float)$parts[4],
+            'pmRa' => (float)$parts[5],
+            'pmDec' => (float)$parts[6],
+            'parallax' => (float)$parts[8],
+            'mag' => (float)$parts[9],
         ]);
     }
 
