@@ -129,4 +129,21 @@ final class FixedStarCatalogTest extends TestCase
         self::assertEqualsWithDelta(101.28715533333334, $star['ra'], 1e-12);
         self::assertEqualsWithDelta(-16.17611586111111, $star['dec'], 1e-12);
     }
+
+    public function testSwissEphemerisCsvLineExpandsAliasesFromNames(): void
+    {
+        $catalog = FixedStarCatalog::fromString(
+            'Sirius;Dog Star,alpha Canis Majoris;Alpha CMa,2000,06 45 08.91728,-16 42 58.0171,-546.01,-1223.07,-5.5,379.21,-1.46'
+        );
+
+        self::assertTrue($catalog->exists('alpha canis majoris'));
+        self::assertTrue($catalog->exists('Alpha CMa'));
+        self::assertTrue($catalog->exists('Dog Star'));
+        self::assertTrue($catalog->exists('dog-star'));
+
+        $star = $catalog->find('alpha-cma');
+
+        self::assertNotNull($star);
+        self::assertSame('Sirius;Dog Star', $star['name']);
+    }
 }
