@@ -122,6 +122,14 @@ final class CalculatorTest extends TestCase
         );
     }
 
+    public function testCalculatorLunEclipseWhenDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::lunarWhen(2451545.0),
+            Calculator::lunEclipseWhen(2451545.0)
+        );
+    }
+
     public function testCalcSunReturnsSolarPositionWithSpeed(): void
     {
         $tjdEt = 2451545.000738760;

@@ -14,6 +14,10 @@ final class Eclipse
     private const RMOON = self::DMOON / 2.0;
     private const REARTH = self::DEARTH / 2.0;
 
+    private const LUNAR_ECLIPSE_SEARCH_STEP_DAYS = 1.0;
+    private const LUNAR_ECLIPSE_SEARCH_MAX_DAYS = 740.0;
+    private const PHASE_BISECTION_ITERATIONS = 80;
+
     /**
      * Geocentric subset of swe_lun_eclipse_how().
      *
@@ -204,6 +208,129 @@ final class Eclipse
     ): EclipseResult
     {
         return EclipseResult::fromArray(self::lunarHow($tjdUt, $flags, $observer, $pressure, $temperature));
+    }
+
+    /**
+     * Finds the next or previous lunar eclipse by scanning full moons.
+     *
+     * This is a compact Swiss Ephemeris compatible subset of swe_lun_eclipse_when().
+     * tret[0] contains the UT Julian day of maximum eclipse.
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunarWhen(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+        bool  $backward = false,
+    ): array
+    {
+        $tret = array_fill(0, 10, 0.0);
+        $attr = array_fill(0, 20, 0.0);
+        $dcore = array_fill(0, 10, 0.0);
+
+        $direction = $backward ? -1.0 : 1.0;
+        $left = $tjdUt;
+        $leftDifference = self::lunarOppositionDifference($left, $flags);
+        $end = $tjdUt + $direction * self::LUNAR_ECLIPSE_SEARCH_MAX_DAYS;
+
+        if (is_nan($leftDifference)) {
+            return [
+                'rc' => SwissDate::ERR,
+                'tret' => $tret,
+                'attr' => $attr,
+                'dcore' => $dcore,
+                'error' => 'lunar eclipse search failed because Sun or Moon position could not be calculated',
+            ];
+        }
+
+        for (
+            $right = $tjdUt + $direction * self::LUNAR_ECLIPSE_SEARCH_STEP_DAYS;
+            $backward ? $right >= $end - 1e-12 : $right <= $end + 1e-12;
+            $right += $direction * self::LUNAR_ECLIPSE_SEARCH_STEP_DAYS
+        ) {
+            $rightDifference = self::lunarOppositionDifference($right, $flags);
+
+            if (self::crossed($leftDifference, $rightDifference)) {
+                $maximum = self::refineLunarOpposition($left, $right, $flags);
+                $how = self::lunarHow($maximum, $flags);
+
+                if ($how['rc'] === SwissDate::ERR) {
+                    return [
+                        'rc' => SwissDate::ERR,
+                        'tret' => $tret,
+                        'attr' => $attr,
+                        'dcore' => $dcore,
+                        'error' => $how['error'],
+                    ];
+                }
+
+                if ($how['rc'] !== 0 && ($how['rc'] & $eclipseTypes) !== 0) {
+                    $tret[0] = $maximum;
+
+                    return [
+                        'rc' => $how['rc'],
+                        'tret' => $tret,
+                        'attr' => $how['attr'],
+                        'dcore' => $how['dcore'],
+                        'error' => '',
+                    ];
+                }
+            }
+
+            $left = $right;
+            $leftDifference = $rightDifference;
+        }
+
+        return [
+            'rc' => 0,
+            'tret' => $tret,
+            'attr' => $attr,
+            'dcore' => $dcore,
+            'error' => 'no lunar eclipse found within search window',
+        ];
+    }
+
+    private static function refineLunarOpposition(float $left, float $right, int $flags): float
+    {
+        for ($i = 0; $i < self::PHASE_BISECTION_ITERATIONS; $i++) {
+            $middle = ($left + $right) / 2.0;
+            $leftDifference = self::lunarOppositionDifference($left, $flags);
+            $rightDifference = self::lunarOppositionDifference($middle, $flags);
+
+            if (self::crossed($leftDifference, $rightDifference)) {
+                $right = $middle;
+            } else {
+                $left = $middle;
+            }
+        }
+
+        return ($left + $right) / 2.0;
+    }
+
+    private static function lunarOppositionDifference(float $tjdUt, int $flags): float
+    {
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags);
+
+        $moon = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $calcFlags);
+        $sun = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $calcFlags);
+
+        if ($moon['rc'] === SwissDate::ERR || $sun['rc'] === SwissDate::ERR) {
+            return NAN;
+        }
+
+        return Angle::difdeg2n($moon['xx'][0], $sun['xx'][0] + 180.0);
+    }
+
+    private static function crossed(float $left, float $right): bool
+    {
+        if (is_nan($left) || is_nan($right)) {
+            return false;
+        }
+
+        return $left == 0.0
+            || $left * $right <= 0.0
+            || abs($left - $right) > 180.0;
     }
 
     /**

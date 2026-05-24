@@ -119,4 +119,34 @@ final class EclipseTest extends TestCase
         );
         self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
     }
+
+    public function testLunarWhenFindsNextTotalLunarEclipse(): void
+    {
+        $result = Eclipse::lunarWhen(2451545.0);
+
+        self::assertSame(Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(
+            SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR),
+            $result['tret'][0],
+            0.02
+        );
+        self::assertGreaterThan(1.0, $result['attr'][0]);
+        self::assertGreaterThan(2.0, $result['attr'][1]);
+    }
+
+    public function testLunarWhenCanSearchBackward(): void
+    {
+        $start = SwissDate::julday(2000, 2, 1, 0.0, SwissDate::GREGORIAN_CALENDAR);
+
+        $result = Eclipse::lunarWhen($start, Catalog::SEFLG_DEFAULTEPH, Catalog::SE_ECL_ALLTYPES_LUNAR, true);
+
+        self::assertSame(Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertLessThan($start, $result['tret'][0]);
+        self::assertEqualsWithDelta(
+            SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR),
+            $result['tret'][0],
+            0.02
+        );
+    }
 }
