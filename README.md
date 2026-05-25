@@ -62,6 +62,72 @@ $result = Calculator::calcUt(
 print_r($result);
 ```
 
+## Natal chart
+
+SwissPHP also includes a small application-level natal chart layer built on top
+of the core ephemeris, house, and aspect calculations.
+
+```php
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+use SwissEph\AspectSet;
+use SwissEph\Catalog;
+use SwissEph\Houses;
+use SwissEph\NatalChartFacade;
+use SwissEph\SwissDate;
+
+$chart = NatalChartFacade::fromLocalDateTime(
+    year: 2000,
+    month: 1,
+    day: 1,
+    hour: 15,
+    minute: 0,
+    second: 0.0,
+    timezone: 3.0,
+    geoLat: 55.7558,
+    geoLon: 37.6173,
+    houseSystem: Houses::HSYS_PLACIDUS,
+    bodies: [
+        Catalog::SE_SUN,
+        Catalog::SE_MOON,
+        Catalog::SE_MERCURY,
+        Catalog::SE_VENUS,
+        Catalog::SE_MARS,
+        Catalog::SE_JUPITER,
+        Catalog::SE_SATURN,
+        Catalog::SE_URANUS,
+        Catalog::SE_NEPTUNE,
+        Catalog::SE_PLUTO,
+    ],
+    flags: Catalog::SEFLG_DEFAULTEPH,
+    aspectSet: AspectSet::major(8.0),
+    calendar: SwissDate::GREGORIAN_CALENDAR,
+);
+
+echo $chart->point('Sun')->signName();  // Capricorn
+echo $chart->point('Sun')->house;       // House number
+echo $chart->house(1)->cusp;            // Ascendant cusp
+
+$svg = NatalChartFacade::svgFromLocalDateTime(
+    year: 2000,
+    month: 1,
+    day: 1,
+    hour: 15,
+    minute: 0,
+    second: 0.0,
+    timezone: 3.0,
+    geoLat: 55.7558,
+    geoLon: 37.6173,
+    houseSystem: Houses::HSYS_PLACIDUS,
+    aspectSet: AspectSet::major(8.0),
+    size: 720,
+);
+
+file_put_contents(__DIR__ . '/natal-chart.svg', $svg);
+```
+
 ## Status
 
 This library is not a drop-in replacement for the original Swiss Ephemeris yet.
