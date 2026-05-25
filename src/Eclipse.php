@@ -291,6 +291,16 @@ final class Eclipse
         ];
     }
 
+    public static function lunarWhenResult(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+        bool  $backward = false,
+    ): EclipseWhenResult
+    {
+        return EclipseWhenResult::fromArray(self::lunarWhen($tjdUt, $flags, $eclipseTypes, $backward));
+    }
+
     private static function refineLunarOpposition(float $left, float $right, int $flags): float
     {
         for ($i = 0; $i < self::PHASE_BISECTION_ITERATIONS; $i++) {

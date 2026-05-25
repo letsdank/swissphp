@@ -15,6 +15,7 @@ use SwissEph\DeltaT;
 use SwissEph\EarthPosition;
 use SwissEph\Eclipse;
 use SwissEph\EclipseResult;
+use SwissEph\EclipseWhenResult;
 use SwissEph\MeanApogee;
 use SwissEph\MeanNode;
 use SwissEph\MoshierMoon;
@@ -127,6 +128,18 @@ final class CalculatorTest extends TestCase
         self::assertSame(
             Eclipse::lunarWhen(2451545.0),
             Calculator::lunEclipseWhen(2451545.0)
+        );
+    }
+
+    public function testCalculatorEclipseWhenResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunEclipseWhenResult(2451545.0);
+
+        self::assertInstanceOf(EclipseWhenResult::class, $result);
+        self::assertEqualsWithDelta(
+            Eclipse::lunarWhenResult(2451545.0)->maximumTime(),
+            $result->maximumTime(),
+            1e-12
         );
     }
 

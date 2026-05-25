@@ -210,6 +210,16 @@ final class Calculator
         return Eclipse::lunarWhen($tjdUt, $flags, $eclipseTypes, $backward);
     }
 
+    public static function lunEclipseWhenResult(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+        bool  $backward = false,
+    ): EclipseWhenResult
+    {
+        return Eclipse::lunarWhenResult($tjdUt, $flags, $eclipseTypes, $backward);
+    }
+
     /**
      * Apparent geocentric ecliptic position for Sun and Moshier planets.
      *

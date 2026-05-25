@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use SwissEph\Catalog;
 use SwissEph\Eclipse;
 use SwissEph\EclipseResult;
+use SwissEph\EclipseWhenResult;
 use SwissEph\Observer;
 use SwissEph\SwissDate;
 
@@ -148,5 +149,19 @@ final class EclipseTest extends TestCase
             $result['tret'][0],
             0.02
         );
+    }
+
+    public function testLunarWhenResultWrapsArrayResult(): void
+    {
+        $result = Eclipse::lunarWhenResult(2451545.0);
+
+        self::assertInstanceOf(EclipseWhenResult::class, $result);
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(
+            SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR),
+            $result->maximumTime(),
+            0.02
+        );
+        self::assertGreaterThan(1.0, $result->umbralMagnitude());
     }
 }
