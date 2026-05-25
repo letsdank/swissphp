@@ -177,6 +177,35 @@ final class CatalogTest extends TestCase
         );
     }
 
+    public function testEclipseConstantsMatchSwissEphemeris(): void
+    {
+        self::assertSame(1, Catalog::SE_ECL_CENTRAL);
+        self::assertSame(2, Catalog::SE_ECL_NONCENTRAL);
+        self::assertSame(4, Catalog::SE_ECL_TOTAL);
+        self::assertSame(8, Catalog::SE_ECL_ANNULAR);
+        self::assertSame(16, Catalog::SE_ECL_PARTIAL);
+        self::assertSame(32, Catalog::SE_ECL_ANNULAR_TOTAL);
+        self::assertSame(32, Catalog::SE_ECL_HYBRID);
+        self::assertSame(64, Catalog::SE_ECL_PENUMBRAL);
+
+        self::assertSame(63, Catalog::SE_ECL_ALLTYPES_SOLAR);
+        self::assertSame(84, Catalog::SE_ECL_ALLTYPES_LUNAR);
+
+        self::assertSame(128, Catalog::SE_ECL_VISIBLE);
+        self::assertSame(256, Catalog::SE_ECL_MAX_VISIBLE);
+        self::assertSame(512, Catalog::SE_ECL_1ST_VISIBLE);
+        self::assertSame(512, Catalog::SE_ECL_PARTBEG_VISIBLE);
+        self::assertSame(1024, Catalog::SE_ECL_2ND_VISIBLE);
+        self::assertSame(1024, Catalog::SE_ECL_TOTBEG_VISIBLE);
+        self::assertSame(2048, Catalog::SE_ECL_3RD_VISIBLE);
+        self::assertSame(2048, Catalog::SE_ECL_TOTEND_VISIBLE);
+        self::assertSame(4096, Catalog::SE_ECL_4TH_VISIBLE);
+        self::assertSame(4096, Catalog::SE_ECL_PARTEND_VISIBLE);
+        self::assertSame(8192, Catalog::SE_ECL_PENUMBBEG_VISIBLE);
+        self::assertSame(16384, Catalog::SE_ECL_PENUMBEND_VISIBLE);
+        self::assertSame(32768, Catalog::SE_ECL_ONE_TRY);
+    }
+
     /**
      * @return iterable<string, array{int, string}>
      */
