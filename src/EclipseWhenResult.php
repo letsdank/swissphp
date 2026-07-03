@@ -84,24 +84,24 @@ final readonly class EclipseWhenResult
         return $this->times[0] ?? 0.0;
     }
 
-    public function firstContactTime(): float
-    {
-        return $this->times[1] ?? 0.0;
-    }
-
-    public function secondContactTime(): float
+    public function partialBeginTime(): float
     {
         return $this->times[2] ?? 0.0;
     }
 
-    public function thirdContactTime(): float
+    public function partialEndTime(): float
     {
         return $this->times[3] ?? 0.0;
     }
 
-    public function fourthContactTime(): float
+    public function totalityBeginTime(): float
     {
         return $this->times[4] ?? 0.0;
+    }
+
+    public function totalityEndTime(): float
+    {
+        return $this->times[5] ?? 0.0;
     }
 
     public function penumbralBeginTime(): float
