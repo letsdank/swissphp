@@ -180,7 +180,15 @@ final class EclipseTest extends TestCase
         );
 
         self::assertSame(
-            Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_VISIBLE | Catalog::SE_ECL_MAX_VISIBLE,
+            Catalog::SE_ECL_TOTAL
+            | Catalog::SE_ECL_VISIBLE
+            | Catalog::SE_ECL_MAX_VISIBLE
+            | Catalog::SE_ECL_PARTBEG_VISIBLE
+            | Catalog::SE_ECL_PARTEND_VISIBLE
+            | Catalog::SE_ECL_TOTBEG_VISIBLE
+            | Catalog::SE_ECL_TOTEND_VISIBLE
+            | Catalog::SE_ECL_PENUMBBEG_VISIBLE
+            | Catalog::SE_ECL_PENUMBEND_VISIBLE,
             $result['rc']
         );
         self::assertSame('', $result['error']);
@@ -202,7 +210,15 @@ final class EclipseTest extends TestCase
         );
 
         self::assertSame(
-            Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_VISIBLE | Catalog::SE_ECL_MAX_VISIBLE,
+            Catalog::SE_ECL_TOTAL
+            | Catalog::SE_ECL_VISIBLE
+            | Catalog::SE_ECL_MAX_VISIBLE
+            | Catalog::SE_ECL_PARTBEG_VISIBLE
+            | Catalog::SE_ECL_PARTEND_VISIBLE
+            | Catalog::SE_ECL_TOTBEG_VISIBLE
+            | Catalog::SE_ECL_TOTEND_VISIBLE
+            | Catalog::SE_ECL_PENUMBBEG_VISIBLE
+            | Catalog::SE_ECL_PENUMBEND_VISIBLE,
             $result['rc']
         );
         self::assertEqualsWithDelta(2451564.687058892, $result['tret'][0], 1e-9);

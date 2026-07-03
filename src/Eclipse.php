@@ -417,7 +417,13 @@ final class Eclipse
                 $global['tret'][0] = $maximum;
 
                 return [
-                    'rc' => $local['rc'] | Catalog::SE_ECL_VISIBLE | Catalog::SE_ECL_MAX_VISIBLE,
+                    'rc' => $local['rc'] | self::localLunarVisibilityFlags(
+                            $global['tret'],
+                            $flags,
+                            $observer,
+                            $pressure,
+                            $temperature
+                        ),
                     'tret' => $global['tret'],
                     'attr' => $local['attr'],
                     'dcore' => $local['dcore'],
@@ -450,6 +456,44 @@ final class Eclipse
         return EclipseWhenResult::fromArray(
             self::lunarWhenLoc($tjdUt, $flags, $observer, $backward, $pressure, $temperature, $eclipseTypes)
         );
+    }
+
+    /**
+     * @param array<int, float> $tret
+     */
+    private static function localLunarVisibilityFlags(
+        array    $tret,
+        int      $flags,
+        Observer $observer,
+        float    $pressure,
+        float    $temperature
+    ): int
+    {
+        $visibilitySlots = [
+            0 => Catalog::SE_ECL_MAX_VISIBLE,
+            2 => Catalog::SE_ECL_PARTBEG_VISIBLE,
+            3 => Catalog::SE_ECL_PARTEND_VISIBLE,
+            4 => Catalog::SE_ECL_TOTBEG_VISIBLE,
+            5 => Catalog::SE_ECL_TOTEND_VISIBLE,
+            6 => Catalog::SE_ECL_PENUMBBEG_VISIBLE,
+            7 => Catalog::SE_ECL_PENUMBEND_VISIBLE,
+        ];
+
+        $visibilityFlags = 0;
+
+        foreach ($visibilitySlots as $index => $visibilityFlag) {
+            if (($tret[$index] ?? 0.0) == 0.0) {
+                continue;
+            }
+
+            $local = self::lunarHow($tret[$index], $flags, $observer, $pressure, $temperature);
+
+            if ($local['rc'] !== SwissDate::ERR && $local['attr'][6] > 0.0) {
+                $visibilityFlags |= Catalog::SE_ECL_VISIBLE | $visibilityFlag;
+            }
+        }
+
+        return $visibilityFlags;
     }
 
     private static function refineLunarOpposition(float $left, float $right, int $flags): float
