@@ -252,4 +252,35 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(0.4576533834410415, $result['attr'][1], 1e-12);
         self::assertEqualsWithDelta(0.23684938584046766, $result['attr'][6], 1e-12);
     }
+
+    public function testLunarWhenLocAddsMoonsetDuringEclipse(): void
+    {
+        $result = Eclipse::lunarWhenLoc(
+            2451545.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            new Observer(-50.0, -60.0, 0.0)
+        );
+
+        self::assertSame(
+            Catalog::SE_ECL_TOTAL
+            | Catalog::SE_ECL_VISIBLE
+            | Catalog::SE_ECL_MAX_VISIBLE
+            | Catalog::SE_ECL_PARTBEG_VISIBLE
+            | Catalog::SE_ECL_PARTEND_VISIBLE
+            | Catalog::SE_ECL_TOTBEG_VISIBLE
+            | Catalog::SE_ECL_TOTEND_VISIBLE
+            | Catalog::SE_ECL_PENUMBBEG_VISIBLE,
+            $result['rc']
+        );
+
+        self::assertEqualsWithDelta(2451564.687058892, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2451564.617189198, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2451564.760460168, $result['tret'][3], 1e-9);
+        self::assertEqualsWithDelta(2451564.659902407, $result['tret'][4], 1e-9);
+        self::assertEqualsWithDelta(2451564.717752806, $result['tret'][5], 1e-9);
+        self::assertEqualsWithDelta(2451564.5774369743, $result['tret'][6], 1e-9);
+        self::assertSame(0.0, $result['tret'][7]);
+        self::assertSame(0.0, $result['tret'][8]);
+        self::assertEqualsWithDelta(2451564.7974327924, $result['tret'][9], 1e-9);
+    }
 }
