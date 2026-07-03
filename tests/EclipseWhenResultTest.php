@@ -29,10 +29,13 @@ final class EclipseWhenResultTest extends TestCase
             'attr' => [
                 0 => 1.25,
                 1 => 2.1,
+                2 => 0.91,
+                3 => 120.5,
                 4 => 180.0,
                 5 => 22.5,
                 6 => 22.6,
                 7 => 0.08,
+                8 => 1.02,
                 9 => 136.0,
                 10 => 29.0,
             ],
@@ -68,10 +71,19 @@ final class EclipseWhenResultTest extends TestCase
         self::assertSame(2451564.45, $result->sunsetTime());
         self::assertSame(1.25, $result->umbralMagnitude());
         self::assertSame(2.1, $result->penumbralMagnitude());
+        self::assertSame(1.25, $result->solarMagnitude());
+        self::assertSame(2.1, $result->lunarSolarDiameterRatio());
+        self::assertSame(0.91, $result->obscuration());
+        self::assertSame(120.5, $result->coreShadowDiameterKm());
         self::assertSame(180.0, $result->moonAzimuth());
         self::assertSame(22.5, $result->moonTrueAltitude());
         self::assertSame(22.6, $result->moonApparentAltitude());
+        self::assertSame(180.0, $result->sunAzimuth());
+        self::assertSame(22.5, $result->sunTrueAltitude());
+        self::assertSame(22.6, $result->sunApparentAltitude());
         self::assertSame(0.08, $result->distanceFromOpposition());
+        self::assertSame(0.08, $result->solarElongation());
+        self::assertSame(1.02, $result->nasaMagnitude());
         self::assertSame(136, $result->sarosSeries());
         self::assertSame(29, $result->sarosMember());
         self::assertSame($array, $result->toArray());
