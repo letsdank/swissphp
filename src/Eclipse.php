@@ -402,39 +402,43 @@ final class Eclipse
             }
 
             $maximum = $global['tret'][0];
-            $local = self::lunarHow($maximum, $flags, $observer, $pressure, $temperature);
+            $global['tret'][0] = $maximum;
+            $global['tret'] = self::localLunarMoonriseMoonsetTimes(
+                $global['tret'],
+                $flags,
+                $observer
+            );
 
-            if ($local['rc'] === SwissDate::ERR) {
-                return [
-                    'rc' => SwissDate::ERR,
-                    'tret' => $tret,
-                    'attr' => $attr,
-                    'dcore' => $dcore,
-                    'error' => $local['error'],
-                ];
-            }
+            $visibilityFlags = self::localLunarVisibilityFlags(
+                $global['tret'],
+                $flags,
+                $observer,
+                $pressure,
+                $temperature
+            );
 
-            if ($local['rc'] !== 0 && ($local['rc'] & $eclipseTypes) !== 0) {
-                $global['tret'][0] = $maximum;
-                $global['tret'] = self::localLunarMoonriseMoonsetTimes(
-                    $global['tret'],
-                    $flags,
-                    $observer
-                );
+            if (($visibilityFlags & Catalog::SE_ECL_VISIBLE) !== 0) {
+                $local = self::lunarHow($global['tret'][0], $flags, $observer, $pressure, $temperature);
 
-                return [
-                    'rc' => $local['rc'] | self::localLunarVisibilityFlags(
-                            $global['tret'],
-                            $flags,
-                            $observer,
-                            $pressure,
-                            $temperature
-                        ),
-                    'tret' => $global['tret'],
-                    'attr' => $local['attr'],
-                    'dcore' => $local['dcore'],
-                    'error' => '',
-                ];
+                if ($local['rc'] === SwissDate::ERR) {
+                    return [
+                        'rc' => SwissDate::ERR,
+                        'tret' => $tret,
+                        'attr' => $attr,
+                        'dcore' => $dcore,
+                        'error' => $local['error'],
+                    ];
+                }
+
+                if ($local['rc'] !== 0 && ($local['rc'] & $eclipseTypes) !== 0) {
+                    return [
+                        'rc' => $local['rc'] | $visibilityFlags,
+                        'tret' => $global['tret'],
+                        'attr' => $local['attr'],
+                        'dcore' => $local['dcore'],
+                        'error' => '',
+                    ];
+                }
             }
 
             $cursor = $maximum + ($backward ? -1e-5 : 1e-5);

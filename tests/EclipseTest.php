@@ -233,20 +233,23 @@ final class EclipseTest extends TestCase
         );
 
         self::assertSame(
-            Catalog::SE_ECL_PARTIAL
+            Catalog::SE_ECL_PENUMBRAL
             | Catalog::SE_ECL_VISIBLE
             | Catalog::SE_ECL_MAX_VISIBLE
-            | Catalog::SE_ECL_PARTEND_VISIBLE
             | Catalog::SE_ECL_PENUMBEND_VISIBLE,
             $result['rc']
         );
 
-        self::assertEqualsWithDelta(2451727.306845799, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2451564.781816452, $result['tret'][0], 1e-9);
         self::assertSame(0.0, $result['tret'][2]);
-        self::assertEqualsWithDelta(2451727.3779552104, $result['tret'][3], 1e-9);
+        self::assertSame(0.0, $result['tret'][3]);
+        self::assertSame(0.0, $result['tret'][4]);
+        self::assertSame(0.0, $result['tret'][5]);
         self::assertSame(0.0, $result['tret'][6]);
-        self::assertEqualsWithDelta(2451727.3779552104, $result['tret'][7], 1e-9);
-        self::assertEqualsWithDelta(2451727.2872264404, $result['tret'][8], 1e-9);
+        self::assertEqualsWithDelta(2451564.8002618942, $result['tret'][7], 1e-9);
+        self::assertEqualsWithDelta(2451564.781816452, $result['tret'][8], 1e-9);
         self::assertSame(0.0, $result['tret'][9]);
+        self::assertEqualsWithDelta(0.4576533834410415, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(0.23684938584046766, $result['attr'][6], 1e-12);
     }
 }
