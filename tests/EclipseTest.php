@@ -223,4 +223,30 @@ final class EclipseTest extends TestCase
         );
         self::assertEqualsWithDelta(2451564.687058892, $result['tret'][0], 1e-9);
     }
+
+    public function testLunarWhenLocAddsMoonriseDuringEclipse(): void
+    {
+        $result = Eclipse::lunarWhenLoc(
+            2451545.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            new Observer(-150.0, -60.0, 0.0)
+        );
+
+        self::assertSame(
+            Catalog::SE_ECL_PARTIAL
+            | Catalog::SE_ECL_VISIBLE
+            | Catalog::SE_ECL_MAX_VISIBLE
+            | Catalog::SE_ECL_PARTEND_VISIBLE
+            | Catalog::SE_ECL_PENUMBEND_VISIBLE,
+            $result['rc']
+        );
+
+        self::assertEqualsWithDelta(2451727.306845799, $result['tret'][0], 1e-9);
+        self::assertSame(0.0, $result['tret'][2]);
+        self::assertEqualsWithDelta(2451727.3779552104, $result['tret'][3], 1e-9);
+        self::assertSame(0.0, $result['tret'][6]);
+        self::assertEqualsWithDelta(2451727.3779552104, $result['tret'][7], 1e-9);
+        self::assertEqualsWithDelta(2451727.2872264404, $result['tret'][8], 1e-9);
+        self::assertSame(0.0, $result['tret'][9]);
+    }
 }

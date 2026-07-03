@@ -415,6 +415,11 @@ final class Eclipse
 
             if ($local['rc'] !== 0 && ($local['rc'] & $eclipseTypes) !== 0) {
                 $global['tret'][0] = $maximum;
+                $global['tret'] = self::localLunarMoonriseMoonsetTimes(
+                    $global['tret'],
+                    $flags,
+                    $observer
+                );
 
                 return [
                     'rc' => $local['rc'] | self::localLunarVisibilityFlags(
@@ -494,6 +499,78 @@ final class Eclipse
         }
 
         return $visibilityFlags;
+    }
+
+    /**
+     * @param array<int, float> $tret
+     * @return array<int, float>
+     */
+    private static function localLunarMoonriseMoonsetTimes(
+        array    $tret,
+        int      $flags,
+        Observer $observer
+    ): array
+    {
+        $penumbralBegin = $tret[6] ?? 0.0;
+        $penumbralEnd = $tret[7] ?? 0.0;
+
+        if ($penumbralBegin == 0.0 || $penumbralEnd == 0.0) {
+            return $tret;
+        }
+
+        $rise = RiseSet::riseTrans(
+            $penumbralBegin - 0.001,
+            Catalog::SE_MOON,
+            $observer,
+            Catalog::SE_CALC_RISE | Catalog::SE_BIT_DISC_BOTTOM,
+            null,
+            0.0,
+            0.0,
+            $flags
+        );
+
+        $set = RiseSet::riseTrans(
+            $penumbralBegin - 0.001,
+            Catalog::SE_MOON,
+            $observer,
+            Catalog::SE_CALC_SET | Catalog::SE_BIT_DISC_BOTTOM,
+            null,
+            0.0,
+            0.0,
+            $flags
+        );
+
+        if ($rise !== null && $rise['tjdUt'] > $penumbralBegin && $rise['tjdUt'] < $penumbralEnd) {
+            $tret[8] = $rise['tjdUt'];
+            $tret[6] = 0.0;
+
+            for ($i = 2; $i <= 5; $i++) {
+                if (($tret[$i] ?? 0.0) != 0.0 && $rise['tjdUt'] > $tret[$i]) {
+                    $tret[$i] = 0.0;
+                }
+            }
+
+            if ($rise['tjdUt'] > $tret[0]) {
+                $tret[0] = $rise['tjdUt'];
+            }
+        }
+
+        if ($set !== null && $set['tjdUt'] > $penumbralBegin && $set['tjdUt'] < $penumbralEnd) {
+            $tret[9] = $set['tjdUt'];
+            $tret[7] = 0.0;
+
+            for ($i = 2; $i <= 5; $i++) {
+                if (($tret[$i] ?? 0.0) != 0.0 && $set['tjdUt'] < $tret[$i]) {
+                    $tret[$i] = 0.0;
+                }
+            }
+
+            if ($set['tjdUt'] < $tret[0]) {
+                $tret[0] = $set['tjdUt'];
+            }
+        }
+
+        return $tret;
     }
 
     private static function refineLunarOpposition(float $left, float $right, int $flags): float
