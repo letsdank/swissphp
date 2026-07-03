@@ -83,6 +83,7 @@ Implemented areas include:
 - Fixed stars
 - Aspects and chart helper objects
 - Initial Swiss Ephemeris file reader foundation
+- Lunar eclipse circumstances and search
 
 Still in progress:
 
@@ -90,7 +91,7 @@ Still in progress:
 - JPL ephemeris support
 - Full asteroid file support
 - Fill fixed-star catalog support
-- Eclipses and occultations
+- Solar eclipses, occultations, and full eclipse contact timelines
 - Heliacal events
 
 ## License

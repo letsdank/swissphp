@@ -169,6 +169,89 @@ final class Calculator
     }
 
     /**
+     * Geocentric subset of swe_lun_eclipse_how().
+     *
+     * @return array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunEclipseHow(
+        float     $tjdUt,
+        int       $flags = Catalog::SEFLG_DEFAULTEPH,
+        ?Observer $observer = null,
+        float     $pressure = 0.0,
+        float     $temperature = 10.0,
+    ): array
+    {
+        return Eclipse::lunarHow($tjdUt, $flags, $observer, $pressure, $temperature);
+    }
+
+    public static function lunEclipseHowResult(
+        float     $tjdUt,
+        int       $flags = Catalog::SEFLG_DEFAULTEPH,
+        ?Observer $observer = null,
+        float     $pressure = 0.0,
+        float     $temperature = 10.0,
+    ): EclipseResult
+    {
+        return Eclipse::lunarHowResult($tjdUt, $flags, $observer, $pressure, $temperature);
+    }
+
+    /**
+     * Swiss Ephemeris compatible subset of swe_lun_eclipse_when().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunEclipseWhen(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+        bool  $backward = false,
+    ): array
+    {
+        return Eclipse::lunarWhen($tjdUt, $flags, $eclipseTypes, $backward);
+    }
+
+    public static function lunEclipseWhenResult(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+        bool  $backward = false,
+    ): EclipseWhenResult
+    {
+        return Eclipse::lunarWhenResult($tjdUt, $flags, $eclipseTypes, $backward);
+    }
+
+    /**
+     * Swiss Ephemeris compatible subset of swe_lun_eclipse_when_loc().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunEclipseWhenLoc(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+        float    $pressure = 0.0,
+        float    $temperature = 10.0,
+        int      $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+    ): array
+    {
+        return Eclipse::lunarWhenLoc($tjdUt, $flags, $observer, $backward, $pressure, $temperature, $eclipseTypes);
+    }
+
+    public static function lunEclipseWhenLocResult(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+        float    $pressure = 0.0,
+        float    $temperature = 10.0,
+        int      $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+    ): EclipseWhenResult
+    {
+        return Eclipse::lunarWhenLocResult($tjdUt, $flags, $observer, $backward, $pressure, $temperature, $eclipseTypes);
+    }
+
+    /**
      * Apparent geocentric ecliptic position for Sun and Moshier planets.
      *
      * This is an explicit apparent API and does not change swe_calc()-style calc().

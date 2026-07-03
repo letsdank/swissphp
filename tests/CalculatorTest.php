@@ -13,6 +13,9 @@ use SwissEph\Coordinates;
 use SwissEph\Crossing;
 use SwissEph\DeltaT;
 use SwissEph\EarthPosition;
+use SwissEph\Eclipse;
+use SwissEph\EclipseResult;
+use SwissEph\EclipseWhenResult;
 use SwissEph\MeanApogee;
 use SwissEph\MeanNode;
 use SwissEph\MoshierMoon;
@@ -81,6 +84,84 @@ final class CalculatorTest extends TestCase
         self::assertSame(
             UtcTime::jdut1ToUtc(2457754.4999952596, SwissDate::GREGORIAN_CALENDAR),
             Calculator::jdut1ToUtc(2457754.4999952596, SwissDate::GREGORIAN_CALENDAR)
+        );
+    }
+
+    public function testCalculatorLunEclipseHowDelegatesToEclipse(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+
+        self::assertSame(
+            Eclipse::lunarHow($tjdUt),
+            Calculator::lunEclipseHow($tjdUt)
+        );
+    }
+
+    public function testCalculatorLunEclipseHowResultDelegatesToEclipse(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+
+        $result = Calculator::lunEclipseHowResult($tjdUt);
+
+        self::assertInstanceOf(EclipseResult::class, $result);
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(
+            Eclipse::lunarHowResult($tjdUt)->umbralMagnitude(),
+            $result->umbralMagnitude(),
+            1e-12
+        );
+    }
+
+    public function testCalculatorLunEclipseHowPassesObserver(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+        $observer = new Observer(13.4050, 52.5200, 34.0);
+
+        self::assertSame(
+            Eclipse::lunarHow($tjdUt, Catalog::SEFLG_DEFAULTEPH, $observer),
+            Calculator::lunEclipseHow($tjdUt, Catalog::SEFLG_DEFAULTEPH, $observer)
+        );
+    }
+
+    public function testCalculatorLunEclipseWhenDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::lunarWhen(2451545.0),
+            Calculator::lunEclipseWhen(2451545.0)
+        );
+    }
+
+    public function testCalculatorLunEclipseWhenLocDelegatesToEclipse(): void
+    {
+        $observer = new Observer(13.4050, 52.5200, 34.0);
+
+        self::assertSame(
+            Eclipse::lunarWhenLoc(2451545.0, Catalog::SEFLG_DEFAULTEPH, $observer),
+            Calculator::lunEclipseWhenLoc(2451545.0, $observer)
+        );
+    }
+
+    public function testCalculatorLunEclipseWhenLocResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunEclipseWhenLocResult(
+            2451545.0,
+            new Observer(13.4050, 52.5200, 34.0)
+        );
+
+        self::assertInstanceOf(EclipseWhenResult::class, $result);
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2451564.687058892, $result->maximumTime(), 1e-9);
+    }
+
+    public function testCalculatorEclipseWhenResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunEclipseWhenResult(2451545.0);
+
+        self::assertInstanceOf(EclipseWhenResult::class, $result);
+        self::assertEqualsWithDelta(
+            Eclipse::lunarWhenResult(2451545.0)->maximumTime(),
+            $result->maximumTime(),
+            1e-12
         );
     }
 
