@@ -16,6 +16,8 @@ final class Eclipse
 
     private const LUNAR_ECLIPSE_SEARCH_STEP_DAYS = 1.0;
     private const LUNAR_ECLIPSE_SEARCH_MAX_DAYS = 740.0;
+    private const LUNAR_ECLIPSE_CONTACT_STEP_DAYS = 0.05;
+    private const LUNAR_ECLIPSE_CONTACT_MAX_STEPS = 80;
     private const PHASE_BISECTION_ITERATIONS = 80;
     private const LOCAL_LUNAR_ECLIPSE_SEARCH_MAX_EVENTS = 40;
 
@@ -268,6 +270,7 @@ final class Eclipse
 
                 if ($how['rc'] !== 0 && ($how['rc'] & $eclipseTypes) !== 0) {
                     $tret[0] = $maximum;
+                    $tret = self::lunarContactTimes($tret, $maximum, $how['rc'], $flags);
 
                     return [
                         'rc' => $how['rc'],
@@ -300,6 +303,73 @@ final class Eclipse
     ): EclipseWhenResult
     {
         return EclipseWhenResult::fromArray(self::lunarWhen($tjdUt, $flags, $eclipseTypes, $backward));
+    }
+
+    /**
+     * @param array<int, float> $tret
+     * @return array<int, float>
+     */
+    private static function lunarContactTimes(array $tret, float $maximum, int $rc, int $flags): array
+    {
+        $penumbralMask = Catalog::SE_ECL_PENUMBRAL | Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_TOTAL;
+        $partialMask = Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_TOTAL;
+
+        if (($rc & $penumbralMask) !== 0) {
+            $tret[6] = self::lunarPhaseBoundary($maximum, $flags, $penumbralMask, true);
+            $tret[7] = self::lunarPhaseBoundary($maximum, $flags, $penumbralMask, false);
+        }
+
+        if (($rc & $partialMask) !== 0) {
+            $tret[2] = self::lunarPhaseBoundary($maximum, $flags, $partialMask, true);
+            $tret[3] = self::lunarPhaseBoundary($maximum, $flags, $partialMask, false);
+        }
+
+        if (($rc & Catalog::SE_ECL_TOTAL) !== 0) {
+            $tret[4] = self::lunarPhaseBoundary($maximum, $flags, Catalog::SE_ECL_TOTAL, true);
+            $tret[5] = self::lunarPhaseBoundary($maximum, $flags, Catalog::SE_ECL_TOTAL, false);
+        }
+
+        return $tret;
+    }
+
+    private static function lunarPhaseBoundary(float $maximum, int $flags, int $phaseMask, bool $backward): float
+    {
+        $inside = $maximum;
+        $outside = $maximum;
+        $step = $backward ? -self::LUNAR_ECLIPSE_CONTACT_STEP_DAYS : self::LUNAR_ECLIPSE_CONTACT_STEP_DAYS;
+
+        for ($i = 0; $i < self::LUNAR_ECLIPSE_CONTACT_MAX_STEPS; $i++) {
+            $outside += $step;
+
+            if (!self::isLunarPhase($outside, $flags, $phaseMask)) {
+                break;
+            }
+        }
+
+        if (self::isLunarPhase($outside, $flags, $phaseMask)) {
+            return 0.0;
+        }
+
+        for ($i = 0; $i < self::PHASE_BISECTION_ITERATIONS; $i++) {
+            $middle = ($inside + $outside) / 2.0;
+
+            if (self::isLunarPhase($middle, $flags, $phaseMask)) {
+                $inside = $middle;
+            } else {
+                $outside = $middle;
+            }
+        }
+
+        return ($inside + $outside) / 2.0;
+    }
+
+    private static function isLunarPhase(float $tjdUt, int $flags, int $phaseMask): bool
+    {
+        $result = self::lunarHow($tjdUt, $flags);
+
+        return $result['rc'] !== SwissDate::ERR
+            && $result['rc'] !== 0
+            && ($result['rc'] & $phaseMask) !== 0;
     }
 
     public static function lunarWhenLoc(

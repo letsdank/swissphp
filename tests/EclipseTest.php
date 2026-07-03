@@ -132,6 +132,12 @@ final class EclipseTest extends TestCase
             $result['tret'][0],
             0.02
         );
+        self::assertEqualsWithDelta(2451564.6171892, $result['tret'][2], 1e-7);
+        self::assertEqualsWithDelta(2451564.7604602, $result['tret'][3], 1e-7);
+        self::assertEqualsWithDelta(2451564.6599024, $result['tret'][4], 1e-7);
+        self::assertEqualsWithDelta(2451564.7177528, $result['tret'][5], 1e-7);
+        self::assertEqualsWithDelta(2451564.5774370, $result['tret'][6], 1e-7);
+        self::assertEqualsWithDelta(2451564.8002619, $result['tret'][7], 1e-7);
         self::assertGreaterThan(1.0, $result['attr'][0]);
         self::assertGreaterThan(2.0, $result['attr'][1]);
     }
