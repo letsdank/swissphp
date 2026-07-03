@@ -20,6 +20,7 @@ final class Eclipse
     private const LUNAR_ECLIPSE_CONTACT_MAX_STEPS = 80;
     private const PHASE_BISECTION_ITERATIONS = 80;
     private const LOCAL_LUNAR_ECLIPSE_SEARCH_MAX_EVENTS = 40;
+    private const LOCAL_LUNAR_MOONRISE_SEARCH_MARGIN_DAYS = 0.05;
 
     /**
      * Geocentric subset of swe_lun_eclipse_how().
@@ -401,34 +402,43 @@ final class Eclipse
             }
 
             $maximum = $global['tret'][0];
-            $local = self::lunarHow($maximum, $flags, $observer, $pressure, $temperature);
+            $global['tret'][0] = $maximum;
+            $global['tret'] = self::localLunarMoonriseMoonsetTimes(
+                $global['tret'],
+                $flags,
+                $observer
+            );
 
-            if ($local['rc'] === SwissDate::ERR) {
-                return [
-                    'rc' => SwissDate::ERR,
-                    'tret' => $tret,
-                    'attr' => $attr,
-                    'dcore' => $dcore,
-                    'error' => $local['error'],
-                ];
-            }
+            $visibilityFlags = self::localLunarVisibilityFlags(
+                $global['tret'],
+                $flags,
+                $observer,
+                $pressure,
+                $temperature
+            );
 
-            if ($local['rc'] !== 0 && ($local['rc'] & $eclipseTypes) !== 0) {
-                $global['tret'][0] = $maximum;
+            if (($visibilityFlags & Catalog::SE_ECL_VISIBLE) !== 0) {
+                $local = self::lunarHow($global['tret'][0], $flags, $observer, $pressure, $temperature);
 
-                return [
-                    'rc' => $local['rc'] | self::localLunarVisibilityFlags(
-                            $global['tret'],
-                            $flags,
-                            $observer,
-                            $pressure,
-                            $temperature
-                        ),
-                    'tret' => $global['tret'],
-                    'attr' => $local['attr'],
-                    'dcore' => $local['dcore'],
-                    'error' => '',
-                ];
+                if ($local['rc'] === SwissDate::ERR) {
+                    return [
+                        'rc' => SwissDate::ERR,
+                        'tret' => $tret,
+                        'attr' => $attr,
+                        'dcore' => $dcore,
+                        'error' => $local['error'],
+                    ];
+                }
+
+                if ($local['rc'] !== 0 && ($local['rc'] & $eclipseTypes) !== 0) {
+                    return [
+                        'rc' => $local['rc'] | $visibilityFlags,
+                        'tret' => $global['tret'],
+                        'attr' => $local['attr'],
+                        'dcore' => $local['dcore'],
+                        'error' => '',
+                    ];
+                }
             }
 
             $cursor = $maximum + ($backward ? -1e-5 : 1e-5);
@@ -494,6 +504,88 @@ final class Eclipse
         }
 
         return $visibilityFlags;
+    }
+
+    /**
+     * @param array<int, float> $tret
+     * @return array<int, float>
+     */
+    private static function localLunarMoonriseMoonsetTimes(
+        array    $tret,
+        int      $flags,
+        Observer $observer
+    ): array
+    {
+        $penumbralBegin = $tret[6] ?? 0.0;
+        $penumbralEnd = $tret[7] ?? 0.0;
+
+        if ($penumbralBegin == 0.0 || $penumbralEnd == 0.0) {
+            return $tret;
+        }
+
+        $searchStart = $penumbralBegin - 0.001;
+        $searchWindow = max(
+            self::LOCAL_LUNAR_MOONRISE_SEARCH_MARGIN_DAYS,
+            $penumbralEnd - $searchStart + self::LOCAL_LUNAR_MOONRISE_SEARCH_MARGIN_DAYS
+        );
+
+        $rise = RiseSet::riseTrans(
+            $searchStart,
+            Catalog::SE_MOON,
+            $observer,
+            Catalog::SE_CALC_RISE | Catalog::SE_BIT_DISC_BOTTOM,
+            null,
+            0.0,
+            0.0,
+            $flags,
+            1.0 / 96.0,
+            $searchWindow
+        );
+
+        $set = RiseSet::riseTrans(
+            $searchStart,
+            Catalog::SE_MOON,
+            $observer,
+            Catalog::SE_CALC_SET | Catalog::SE_BIT_DISC_BOTTOM,
+            null,
+            0.0,
+            0.0,
+            $flags,
+            1.0 / 96.0,
+            $searchWindow
+        );
+
+        if ($rise !== null && $rise['tjdUt'] > $penumbralBegin && $rise['tjdUt'] < $penumbralEnd) {
+            $tret[8] = $rise['tjdUt'];
+            $tret[6] = 0.0;
+
+            for ($i = 2; $i <= 5; $i++) {
+                if (($tret[$i] ?? 0.0) != 0.0 && $rise['tjdUt'] > $tret[$i]) {
+                    $tret[$i] = 0.0;
+                }
+            }
+
+            if ($rise['tjdUt'] > $tret[0]) {
+                $tret[0] = $rise['tjdUt'];
+            }
+        }
+
+        if ($set !== null && $set['tjdUt'] > $penumbralBegin && $set['tjdUt'] < $penumbralEnd) {
+            $tret[9] = $set['tjdUt'];
+            $tret[7] = 0.0;
+
+            for ($i = 2; $i <= 5; $i++) {
+                if (($tret[$i] ?? 0.0) != 0.0 && $set['tjdUt'] < $tret[$i]) {
+                    $tret[$i] = 0.0;
+                }
+            }
+
+            if ($set['tjdUt'] < $tret[0]) {
+                $tret[0] = $set['tjdUt'];
+            }
+        }
+
+        return $tret;
     }
 
     private static function refineLunarOpposition(float $left, float $right, int $flags): float
