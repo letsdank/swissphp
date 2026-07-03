@@ -94,6 +94,21 @@ final readonly class EclipseWhenResult
         return $this->attributes[1] ?? 0.0;
     }
 
+    public function moonAzimuth(): float
+    {
+        return $this->attributes[4] ?? 0.0;
+    }
+
+    public function moonTrueAltitude(): float
+    {
+        return $this->attributes[5] ?? 0.0;
+    }
+
+    public function moonApparentAltitude(): float
+    {
+        return $this->attributes[6] ?? 0.0;
+    }
+
     public function distanceFromOpposition(): float
     {
         return $this->attributes[7] ?? 0.0;
