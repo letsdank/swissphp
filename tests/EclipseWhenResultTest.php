@@ -13,7 +13,7 @@ final class EclipseWhenResultTest extends TestCase
     public function testFromArrayAndToArray(): void
     {
         $array = [
-            'rc' => Catalog::SE_ECL_TOTAL,
+            'rc' => Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_VISIBLE | Catalog::SE_ECL_MAX_VISIBLE,
             'tret' => [
                 0 => 2451564.697917,
             ],
@@ -34,6 +34,8 @@ final class EclipseWhenResultTest extends TestCase
         $result = EclipseWhenResult::fromArray($array);
 
         self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isVisible());
+        self::assertTrue($result->isMaximumVisible());
         self::assertTrue($result->isTotal());
         self::assertFalse($result->isPartial());
         self::assertFalse($result->isPenumbral());
@@ -57,6 +59,8 @@ final class EclipseWhenResultTest extends TestCase
         );
 
         self::assertFalse($result->isEclipse());
+        self::assertFalse($result->isVisible());
+        self::assertFalse($result->isMaximumVisible());
         self::assertSame(0.0, $result->maximumTime());
         self::assertSame('no lunar eclipse found within search window', $result->error);
     }

@@ -54,6 +54,16 @@ final readonly class EclipseWhenResult
         return $this->rc > 0;
     }
 
+    public function isVisible(): bool
+    {
+        return ($this->rc & Catalog::SE_ECL_VISIBLE) !== 0;
+    }
+
+    public function isMaximumVisible(): bool
+    {
+        return ($this->rc & Catalog::SE_ECL_MAX_VISIBLE) !== 0;
+    }
+
     public function isTotal(): bool
     {
         return ($this->rc & Catalog::SE_ECL_TOTAL) !== 0;
