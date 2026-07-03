@@ -84,6 +84,26 @@ final readonly class EclipseWhenResult
         return $this->times[0] ?? 0.0;
     }
 
+    public function firstContactTime(): float
+    {
+        return $this->times[1] ?? 0.0;
+    }
+
+    public function secondContactTime(): float
+    {
+        return $this->times[2] ?? 0.0;
+    }
+
+    public function thirdContactTime(): float
+    {
+        return $this->times[3] ?? 0.0;
+    }
+
+    public function fourthContactTime(): float
+    {
+        return $this->times[4] ?? 0.0;
+    }
+
     public function partialBeginTime(): float
     {
         return $this->times[2] ?? 0.0;
@@ -124,6 +144,16 @@ final readonly class EclipseWhenResult
         return $this->times[9] ?? 0.0;
     }
 
+    public function sunriseTime(): float
+    {
+        return $this->times[5] ?? 0.0;
+    }
+
+    public function sunsetTime(): float
+    {
+        return $this->times[6] ?? 0.0;
+    }
+
     public function umbralMagnitude(): float
     {
         return $this->attributes[0] ?? 0.0;
@@ -132,6 +162,26 @@ final readonly class EclipseWhenResult
     public function penumbralMagnitude(): float
     {
         return $this->attributes[1] ?? 0.0;
+    }
+
+    public function solarMagnitude(): float
+    {
+        return $this->attributes[0] ?? 0.0;
+    }
+
+    public function lunarSolarDiameterRatio(): float
+    {
+        return $this->attributes[1] ?? 0.0;
+    }
+
+    public function obscuration(): float
+    {
+        return $this->attributes[2] ?? 0.0;
+    }
+
+    public function coreShadowDiameterKm(): float
+    {
+        return $this->attributes[3] ?? 0.0;
     }
 
     public function moonAzimuth(): float
@@ -149,9 +199,34 @@ final readonly class EclipseWhenResult
         return $this->attributes[6] ?? 0.0;
     }
 
+    public function sunAzimuth(): float
+    {
+        return $this->attributes[4] ?? 0.0;
+    }
+
+    public function sunTrueAltitude(): float
+    {
+        return $this->attributes[5] ?? 0.0;
+    }
+
+    public function sunApparentAltitude(): float
+    {
+        return $this->attributes[6] ?? 0.0;
+    }
+
     public function distanceFromOpposition(): float
     {
         return $this->attributes[7] ?? 0.0;
+    }
+
+    public function solarElongation(): float
+    {
+        return $this->attributes[7] ?? 0.0;
+    }
+
+    public function nasaMagnitude(): float
+    {
+        return $this->attributes[8] ?? 0.0;
     }
 
     public function sarosSeries(): int

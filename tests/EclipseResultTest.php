@@ -46,6 +46,38 @@ final class EclipseResultTest extends TestCase
         self::assertSame(29, $result->sarosMember());
     }
 
+    public function testSolarEclipseAttributes(): void
+    {
+        $result = new EclipseResult(
+            Catalog::SE_ECL_TOTAL,
+            [
+                0 => 1.05,
+                1 => 1.02,
+                2 => 0.98,
+                3 => 120.5,
+                4 => 190.0,
+                5 => 35.5,
+                6 => 35.6,
+                7 => 0.12,
+                8 => 1.02,
+                9 => 145.0,
+                10 => 22.0,
+            ]
+        );
+
+        self::assertSame(1.05, $result->solarMagnitude());
+        self::assertSame(1.02, $result->lunarSolarDiameterRatio());
+        self::assertSame(0.98, $result->obscuration());
+        self::assertSame(120.5, $result->coreShadowDiameterKm());
+        self::assertSame(190.0, $result->sunAzimuth());
+        self::assertSame(35.5, $result->sunTrueAltitude());
+        self::assertSame(35.6, $result->sunApparentAltitude());
+        self::assertSame(0.12, $result->solarElongation());
+        self::assertSame(1.02, $result->nasaMagnitude());
+        self::assertSame(145, $result->sarosSeries());
+        self::assertSame(22, $result->sarosMember());
+    }
+
     public function testFromArrayAndToArray(): void
     {
         $array = [
