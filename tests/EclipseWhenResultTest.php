@@ -16,6 +16,7 @@ final class EclipseWhenResultTest extends TestCase
             'rc' => Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_VISIBLE | Catalog::SE_ECL_MAX_VISIBLE,
             'tret' => [
                 0 => 2451564.697917,
+                1 => 2451564.55,
                 2 => 2451564.60,
                 3 => 2451564.79,
                 4 => 2451564.62,
@@ -51,6 +52,10 @@ final class EclipseWhenResultTest extends TestCase
         self::assertFalse($result->isPartial());
         self::assertFalse($result->isPenumbral());
         self::assertSame(2451564.697917, $result->maximumTime());
+        self::assertSame(2451564.55, $result->firstContactTime());
+        self::assertSame(2451564.60, $result->secondContactTime());
+        self::assertSame(2451564.79, $result->thirdContactTime());
+        self::assertSame(2451564.62, $result->fourthContactTime());
         self::assertSame(2451564.60, $result->partialBeginTime());
         self::assertSame(2451564.79, $result->partialEndTime());
         self::assertSame(2451564.62, $result->totalityBeginTime());
@@ -59,6 +64,8 @@ final class EclipseWhenResultTest extends TestCase
         self::assertSame(2451564.94, $result->penumbralEndTime());
         self::assertSame(2451564.50, $result->moonriseTime());
         self::assertSame(2451564.90, $result->moonsetTime());
+        self::assertSame(2451564.77, $result->sunriseTime());
+        self::assertSame(2451564.45, $result->sunsetTime());
         self::assertSame(1.25, $result->umbralMagnitude());
         self::assertSame(2.1, $result->penumbralMagnitude());
         self::assertSame(180.0, $result->moonAzimuth());
@@ -84,6 +91,10 @@ final class EclipseWhenResultTest extends TestCase
         self::assertFalse($result->isVisible());
         self::assertFalse($result->isMaximumVisible());
         self::assertSame(0.0, $result->maximumTime());
+        self::assertSame(0.0, $result->firstContactTime());
+        self::assertSame(0.0, $result->secondContactTime());
+        self::assertSame(0.0, $result->thirdContactTime());
+        self::assertSame(0.0, $result->fourthContactTime());
         self::assertSame(0.0, $result->partialBeginTime());
         self::assertSame(0.0, $result->partialEndTime());
         self::assertSame(0.0, $result->totalityBeginTime());
@@ -92,6 +103,8 @@ final class EclipseWhenResultTest extends TestCase
         self::assertSame(0.0, $result->penumbralEndTime());
         self::assertSame(0.0, $result->moonriseTime());
         self::assertSame(0.0, $result->moonsetTime());
+        self::assertSame(0.0, $result->sunriseTime());
+        self::assertSame(0.0, $result->sunsetTime());
         self::assertSame('no lunar eclipse found within search window', $result->error);
     }
 }

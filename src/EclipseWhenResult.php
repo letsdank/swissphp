@@ -84,6 +84,26 @@ final readonly class EclipseWhenResult
         return $this->times[0] ?? 0.0;
     }
 
+    public function firstContactTime(): float
+    {
+        return $this->times[1] ?? 0.0;
+    }
+
+    public function secondContactTime(): float
+    {
+        return $this->times[2] ?? 0.0;
+    }
+
+    public function thirdContactTime(): float
+    {
+        return $this->times[3] ?? 0.0;
+    }
+
+    public function fourthContactTime(): float
+    {
+        return $this->times[4] ?? 0.0;
+    }
+
     public function partialBeginTime(): float
     {
         return $this->times[2] ?? 0.0;
@@ -122,6 +142,16 @@ final readonly class EclipseWhenResult
     public function moonsetTime(): float
     {
         return $this->times[9] ?? 0.0;
+    }
+
+    public function sunriseTime(): float
+    {
+        return $this->times[5] ?? 0.0;
+    }
+
+    public function sunsetTime(): float
+    {
+        return $this->times[6] ?? 0.0;
     }
 
     public function umbralMagnitude(): float
