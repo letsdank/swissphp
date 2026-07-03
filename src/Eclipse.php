@@ -20,6 +20,7 @@ final class Eclipse
     private const LUNAR_ECLIPSE_CONTACT_MAX_STEPS = 80;
     private const PHASE_BISECTION_ITERATIONS = 80;
     private const LOCAL_LUNAR_ECLIPSE_SEARCH_MAX_EVENTS = 40;
+    private const LOCAL_LUNAR_MOONRISE_SEARCH_MARGIN_DAYS = 0.05;
 
     /**
      * Geocentric subset of swe_lun_eclipse_how().
@@ -518,26 +519,36 @@ final class Eclipse
             return $tret;
         }
 
+        $searchStart = $penumbralBegin - 0.001;
+        $searchWindow = max(
+            self::LOCAL_LUNAR_MOONRISE_SEARCH_MARGIN_DAYS,
+            $penumbralEnd - $searchStart + self::LOCAL_LUNAR_MOONRISE_SEARCH_MARGIN_DAYS
+        );
+
         $rise = RiseSet::riseTrans(
-            $penumbralBegin - 0.001,
+            $searchStart,
             Catalog::SE_MOON,
             $observer,
             Catalog::SE_CALC_RISE | Catalog::SE_BIT_DISC_BOTTOM,
             null,
             0.0,
             0.0,
-            $flags
+            $flags,
+            1.0 / 96.0,
+            $searchWindow
         );
 
         $set = RiseSet::riseTrans(
-            $penumbralBegin - 0.001,
+            $searchStart,
             Catalog::SE_MOON,
             $observer,
             Catalog::SE_CALC_SET | Catalog::SE_BIT_DISC_BOTTOM,
             null,
             0.0,
             0.0,
-            $flags
+            $flags,
+            1.0 / 96.0,
+            $searchWindow
         );
 
         if ($rise !== null && $rise['tjdUt'] > $penumbralBegin && $rise['tjdUt'] < $penumbralEnd) {
