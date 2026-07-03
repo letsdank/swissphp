@@ -114,6 +114,16 @@ final readonly class EclipseWhenResult
         return $this->times[7] ?? 0.0;
     }
 
+    public function moonriseTime(): float
+    {
+        return $this->times[8] ?? 0.0;
+    }
+
+    public function moonsetTime(): float
+    {
+        return $this->times[9] ?? 0.0;
+    }
+
     public function umbralMagnitude(): float
     {
         return $this->attributes[0] ?? 0.0;

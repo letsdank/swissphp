@@ -22,6 +22,8 @@ final class EclipseWhenResultTest extends TestCase
                 5 => 2451564.77,
                 6 => 2451564.45,
                 7 => 2451564.94,
+                8 => 2451564.50,
+                9 => 2451564.90,
             ],
             'attr' => [
                 0 => 1.25,
@@ -55,6 +57,8 @@ final class EclipseWhenResultTest extends TestCase
         self::assertSame(2451564.77, $result->totalityEndTime());
         self::assertSame(2451564.45, $result->penumbralBeginTime());
         self::assertSame(2451564.94, $result->penumbralEndTime());
+        self::assertSame(2451564.50, $result->moonriseTime());
+        self::assertSame(2451564.90, $result->moonsetTime());
         self::assertSame(1.25, $result->umbralMagnitude());
         self::assertSame(2.1, $result->penumbralMagnitude());
         self::assertSame(180.0, $result->moonAzimuth());
@@ -86,6 +90,8 @@ final class EclipseWhenResultTest extends TestCase
         self::assertSame(0.0, $result->totalityEndTime());
         self::assertSame(0.0, $result->penumbralBeginTime());
         self::assertSame(0.0, $result->penumbralEndTime());
+        self::assertSame(0.0, $result->moonriseTime());
+        self::assertSame(0.0, $result->moonsetTime());
         self::assertSame('no lunar eclipse found within search window', $result->error);
     }
 }
