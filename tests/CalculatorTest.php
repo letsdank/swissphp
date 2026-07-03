@@ -131,6 +131,28 @@ final class CalculatorTest extends TestCase
         );
     }
 
+    public function testCalculatorLunEclipseWhenLocDelegatesToEclipse(): void
+    {
+        $observer = new Observer(13.4050, 52.5200, 34.0);
+
+        self::assertSame(
+            Eclipse::lunarWhenLoc(2451545.0, Catalog::SEFLG_DEFAULTEPH, $observer),
+            Calculator::lunEclipseWhenLoc(2451545.0, $observer)
+        );
+    }
+
+    public function testCalculatorLunEclipseWhenLocResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunEclipseWhenLocResult(
+            2451545.0,
+            new Observer(13.4050, 52.5200, 34.0)
+        );
+
+        self::assertInstanceOf(EclipseWhenResult::class, $result);
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2451564.687058892, $result->maximumTime(), 1e-9);
+    }
+
     public function testCalculatorEclipseWhenResultDelegatesToEclipse(): void
     {
         $result = Calculator::lunEclipseWhenResult(2451545.0);

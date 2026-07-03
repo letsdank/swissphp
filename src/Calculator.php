@@ -221,6 +221,37 @@ final class Calculator
     }
 
     /**
+     * Swiss Ephemeris compatible subset of swe_lun_eclipse_when_loc().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunEclipseWhenLoc(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+        float    $pressure = 0.0,
+        float    $temperature = 10.0,
+        int      $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+    ): array
+    {
+        return Eclipse::lunarWhenLoc($tjdUt, $flags, $observer, $backward, $pressure, $temperature, $eclipseTypes);
+    }
+
+    public static function lunEclipseWhenLocResult(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+        float    $pressure = 0.0,
+        float    $temperature = 10.0,
+        int      $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+    ): EclipseWhenResult
+    {
+        return Eclipse::lunarWhenLocResult($tjdUt, $flags, $observer, $backward, $pressure, $temperature, $eclipseTypes);
+    }
+
+    /**
      * Apparent geocentric ecliptic position for Sun and Moshier planets.
      *
      * This is an explicit apparent API and does not change swe_calc()-style calc().

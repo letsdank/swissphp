@@ -17,6 +17,7 @@ final class Eclipse
     private const LUNAR_ECLIPSE_SEARCH_STEP_DAYS = 1.0;
     private const LUNAR_ECLIPSE_SEARCH_MAX_DAYS = 740.0;
     private const PHASE_BISECTION_ITERATIONS = 80;
+    private const LOCAL_LUNAR_ECLIPSE_SEARCH_MAX_EVENTS = 40;
 
     /**
      * Geocentric subset of swe_lun_eclipse_how().
@@ -299,6 +300,86 @@ final class Eclipse
     ): EclipseWhenResult
     {
         return EclipseWhenResult::fromArray(self::lunarWhen($tjdUt, $flags, $eclipseTypes, $backward));
+    }
+
+    public static function lunarWhenLoc(
+        float    $tjdUt,
+        int      $flags,
+        Observer $observer,
+        bool     $backward = false,
+        float    $pressure = 0.0,
+        float    $temperature = 10.0,
+        int      $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+    ): array
+    {
+        $tret = array_fill(0, 10, 0.0);
+        $attr = array_fill(0, 20, 0.0);
+        $dcore = array_fill(0, 10, 0.0);
+        $cursor = $tjdUt;
+
+        for ($i = 0; $i < self::LOCAL_LUNAR_ECLIPSE_SEARCH_MAX_EVENTS; $i++) {
+            $global = self::lunarWhen($cursor, $flags, $eclipseTypes, $backward);
+
+            if ($global['rc'] === SwissDate::ERR || $global['rc'] === 0) {
+                return [
+                    'rc' => $global['rc'],
+                    'tret' => $tret,
+                    'attr' => $attr,
+                    'dcore' => $dcore,
+                    'error' => $global['error'],
+                ];
+            }
+
+            $maximum = $global['tret'][0];
+            $local = self::lunarHow($maximum, $flags, $observer, $pressure, $temperature);
+
+            if ($local['rc'] === SwissDate::ERR) {
+                return [
+                    'rc' => SwissDate::ERR,
+                    'tret' => $tret,
+                    'attr' => $attr,
+                    'dcore' => $dcore,
+                    'error' => $local['error'],
+                ];
+            }
+
+            if ($local['rc'] !== 0 && ($local['rc'] & $eclipseTypes) !== 0) {
+                $global['tret'][0] = $maximum;
+
+                return [
+                    'rc' => $local['rc'] | Catalog::SE_ECL_VISIBLE | Catalog::SE_ECL_MAX_VISIBLE,
+                    'tret' => $global['tret'],
+                    'attr' => $local['attr'],
+                    'dcore' => $local['dcore'],
+                    'error' => '',
+                ];
+            }
+
+            $cursor = $maximum + ($backward ? -1e-5 : 1e-5);
+        }
+
+        return [
+            'rc' => 0,
+            'tret' => $tret,
+            'attr' => $attr,
+            'dcore' => $dcore,
+            'error' => 'no local lunar eclipse found within search window',
+        ];
+    }
+
+    public static function lunarWhenLocResult(
+        float    $tjdUt,
+        int      $flags,
+        Observer $observer,
+        bool     $backward = false,
+        float    $pressure = 0.0,
+        float    $temperature = 10.0,
+        int      $eclipseTypes = Catalog::SE_ECL_ALLTYPES_LUNAR,
+    ): EclipseWhenResult
+    {
+        return EclipseWhenResult::fromArray(
+            self::lunarWhenLoc($tjdUt, $flags, $observer, $backward, $pressure, $temperature, $eclipseTypes)
+        );
     }
 
     private static function refineLunarOpposition(float $left, float $right, int $flags): float

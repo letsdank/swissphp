@@ -164,4 +164,41 @@ final class EclipseTest extends TestCase
         );
         self::assertGreaterThan(1.0, $result->umbralMagnitude());
     }
+
+    public function testLunarWhenLocFindsNextVisibleLocalLunarEclipse(): void
+    {
+        $result = Eclipse::lunarWhenLoc(
+            2451545.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            new Observer(13.4050, 52.5200, 34.0)
+        );
+
+        self::assertSame(
+            Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_VISIBLE | Catalog::SE_ECL_MAX_VISIBLE,
+            $result['rc']
+        );
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2451564.687058892, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(1.3970831041773457, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(2.3797310345076195, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(93.19097105806173, $result['attr'][4], 1e-12);
+        self::assertEqualsWithDelta(22.803691629925098, $result['attr'][5], 1e-12);
+        self::assertEqualsWithDelta(22.842037538364337, $result['attr'][6], 1e-12);
+    }
+
+    public function testLunarWhenLocCanSearchBackward(): void
+    {
+        $result = Eclipse::lunarWhenLoc(
+            SwissDate::julday(2000, 2, 1, 0.0, SwissDate::GREGORIAN_CALENDAR),
+            Catalog::SEFLG_DEFAULTEPH,
+            new Observer(13.4050, 52.5200, 34.0),
+            true
+        );
+
+        self::assertSame(
+            Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_VISIBLE | Catalog::SE_ECL_MAX_VISIBLE,
+            $result['rc']
+        );
+        self::assertEqualsWithDelta(2451564.687058892, $result['tret'][0], 1e-9);
+    }
 }
