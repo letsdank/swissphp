@@ -84,6 +84,36 @@ final readonly class EclipseWhenResult
         return $this->times[0] ?? 0.0;
     }
 
+    public function firstContactTime(): float
+    {
+        return $this->times[1] ?? 0.0;
+    }
+
+    public function secondContactTime(): float
+    {
+        return $this->times[2] ?? 0.0;
+    }
+
+    public function thirdContactTime(): float
+    {
+        return $this->times[3] ?? 0.0;
+    }
+
+    public function fourthContactTime(): float
+    {
+        return $this->times[4] ?? 0.0;
+    }
+
+    public function penumbralBeginTime(): float
+    {
+        return $this->times[6] ?? 0.0;
+    }
+
+    public function penumbralEndTime(): float
+    {
+        return $this->times[7] ?? 0.0;
+    }
+
     public function umbralMagnitude(): float
     {
         return $this->attributes[0] ?? 0.0;
