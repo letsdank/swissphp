@@ -169,18 +169,19 @@ final class CalculatorTest extends TestCase
     public function testCalculatorSolEclipseWhereDelegatesToEclipse(): void
     {
         self::assertSame(
-            Eclipse::solarWhere(2460409.25),
-            Calculator::solEclipseWhere(2460409.25)
+            Eclipse::solarWhere(2460409.222222222),
+            Calculator::solEclipseWhere(2460409.222222222)
         );
     }
 
     public function testCalculatorSolEclipseWhereResultDelegatesToEclipse(): void
     {
-        $result = Calculator::solEclipseWhereResult(2460409.25);
+        $result = Calculator::solEclipseWhereResult(2460409.222222222);
 
         self::assertInstanceOf(SolarEclipseResult::class, $result);
-        self::assertFalse($result->isEclipse());
-        self::assertSame('solar eclipse location is not implemented yet', $result->result->error);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(-188.1032147468757, $result->coreShadowDiameterKm(), 1e-9);
     }
 
     public function testCalculatorSolEclipseHowDelegatesToEclipse(): void

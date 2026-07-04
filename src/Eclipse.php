@@ -13,6 +13,7 @@ final class Eclipse
     private const RSUN = self::DSUN / 2.0;
     private const RMOON = self::DMOON / 2.0;
     private const REARTH = self::DEARTH / 2.0;
+    private const EARTH_OBLATENESS = 1.0 / 298.257223563;
 
     private const LUNAR_ECLIPSE_SEARCH_STEP_DAYS = 1.0;
     private const LUNAR_ECLIPSE_SEARCH_MAX_DAYS = 740.0;
@@ -478,12 +479,57 @@ final class Eclipse
         int   $flags = Catalog::SEFLG_DEFAULTEPH,
     ): array
     {
+        $seed = self::solarWhereSeed($tjdUt, $flags);
+
+        if ($seed['rc'] === SwissDate::ERR || $seed['rc'] === 0) {
+            return $seed;
+        }
+
+        $maximum = self::solarWhereMaximum(
+            $tjdUt,
+            $flags,
+            $seed['geopos'][0],
+            $seed['geopos'][1]
+        );
+
+        if ($maximum['how']['rc'] === SwissDate::ERR) {
+            return [
+                'rc' => SwissDate::ERR,
+                'geopos' => $seed['geopos'],
+                'attr' => $maximum['how']['attr'],
+                'dcore' => $seed['dcore'],
+                'error' => $maximum['how']['error'],
+            ];
+        }
+
+        if ($maximum['how']['rc'] === 0) {
+            return [
+                'rc' => 0,
+                'geopos' => array_fill(0, 10, 0.0),
+                'attr' => $maximum['how']['attr'],
+                'dcore' => $seed['dcore'],
+                'error' => sprintf('no solar eclipse at tjd = %.6F', $tjdUt),
+            ];
+        }
+
+        $geopos = array_fill(0, 10, 0.0);
+        $geopos[0] = $maximum['longitude'];
+        $geopos[1] = $maximum['latitude'];
+
+        $attr = $maximum['how']['attr'];
+        $attr[3] = $seed['dcore'][0];
+
+        $rc = $maximum['how']['rc'];
+        $rc |= ($rc & (Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_ANNULAR)) !== 0
+            ? Catalog::SE_ECL_CENTRAL
+            : Catalog::SE_ECL_NONCENTRAL;
+
         return [
-            'rc' => SwissDate::ERR,
-            'geopos' => array_fill(0, 10, 0.0),
-            'attr' => array_fill(0, 20, 0.0),
-            'dcore' => array_fill(0, 10, 0.0),
-            'error' => 'solar eclipse location is not implemented yet',
+            'rc' => $rc,
+            'geopos' => $geopos,
+            'attr' => $attr,
+            'dcore' => $seed['dcore'],
+            'error' => '',
         ];
     }
 
@@ -592,6 +638,259 @@ final class Eclipse
     ): SolarEclipseResult
     {
         return SolarEclipseResult::fromArray(self::solarHow($tjdUt, $observer, $flags));
+    }
+
+    /**
+     * @return array{rc:int, geopos:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    private static function solarWhereSeed(float $tjdUt, int $flags): array
+    {
+        $geopos = array_fill(0, 10, 0.0);
+        $dcore = array_fill(0, 10, 0.0);
+
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags)
+            | Catalog::SEFLG_SPEED
+            | Catalog::SEFLG_EQUATORIAL;
+
+        $cartesianFlags = $calcFlags | Catalog::SEFLG_XYZ;
+        $polarFlags = $calcFlags | Catalog::SEFLG_RADIANS;
+
+        $moonCartesian = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $cartesianFlags);
+        $sunCartesian = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $cartesianFlags);
+        $moonPolar = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $polarFlags);
+        $sunPolar = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $polarFlags);
+
+        foreach ([$moonCartesian, $sunCartesian, $moonPolar, $sunPolar] as $result) {
+            if ($result['rc'] === SwissDate::ERR) {
+                return [
+                    'rc' => SwissDate::ERR,
+                    'geopos' => $geopos,
+                    'dcore' => $dcore,
+                    'error' => $result['error'],
+                ];
+            }
+        }
+
+        $tjdEt = $tjdUt + DeltaT::deltatEx($tjdUt, $flags);
+        $nutation = SiderealTime::nutationApprox($tjdEt);
+        $eps = SiderealTime::meanObliquity($tjdEt);
+        $sidereal = SiderealTime::sidtime0($tjdUt, $eps + $nutation['deps'], $nutation['dpsi']) * 15.0;
+
+        $earthOblateness = 1.0 - self::EARTH_OBLATENESS;
+        $moon = array_slice($moonCartesian['xx'], 0, 3);
+        $sun = array_slice($sunCartesian['xx'], 0, 3);
+
+        for ($iteration = 0; $iteration < 2; $iteration++) {
+            $rm = Coordinates::polcart([
+                $moonPolar['xx'][0],
+                $moonPolar['xx'][1],
+                $moonPolar['xx'][2],
+            ]);
+            $rm[2] /= $earthOblateness;
+            $dm = self::vectorLength($rm);
+
+            $rs = Coordinates::polcart([
+                $sunPolar['xx'][0],
+                $sunPolar['xx'][1],
+                $sunPolar['xx'][2],
+            ]);
+            $rs[2] /= $earthOblateness;
+
+            $e = [
+                $rm[0] - $rs[0],
+                $rm[1] - $rs[1],
+                $rm[2] - $rs[2],
+            ];
+            $dsm = self::vectorLength($e);
+
+            for ($i = 0; $i < 3; $i++) {
+                $e[$i] /= $dsm;
+            }
+
+            $sinf1 = (self::RSUN - self::RMOON) / $dsm;
+            $cosf1 = sqrt(1.0 - $sinf1 * $sinf1);
+            $sinf2 = (self::RSUN + self::RMOON) / $dsm;
+            $cosf2 = sqrt(1.0 - $sinf2 * $sinf2);
+
+            $s0 = -self::dot($rm, $e);
+            $r0 = sqrt($dm * $dm - $s0 * $s0);
+
+            $d0 = ($s0 / $dsm * (self::DSUN - self::DMOON) - self::DMOON) / $cosf1;
+            $D0 = ($s0 / $dsm * (self::DSUN + self::DMOON) + self::DMOON) / $cosf2;
+
+            $rc = 0;
+
+            if (self::REARTH * $cosf1 >= $r0) {
+                $rc |= Catalog::SE_ECL_CENTRAL;
+            } elseif ($r0 <= self::REARTH * $cosf1 + abs($d0) / 2.0) {
+                $rc |= Catalog::SE_ECL_NONCENTRAL;
+            } elseif ($r0 <= self::REARTH * $cosf2 + $D0 / 2.0) {
+                $rc |= Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_NONCENTRAL;
+            } else {
+                return [
+                    'rc' => 0,
+                    'geopos' => $geopos,
+                    'dcore' => $dcore,
+                    'error' => sprintf('no solar eclipse at tjd = %.6F', $tjdUt),
+                ];
+            }
+
+            $distance = $s0 * $s0 + self::REARTH * self::REARTH - $dm * $dm;
+            $distance = $distance > 0.0 ? sqrt($distance) : 0.0;
+            $shadowDistance = $s0 - $distance;
+
+            $xs = [
+                $rm[0] + $shadowDistance * $e[0],
+                $rm[1] + $shadowDistance * $e[1],
+                $rm[2] + $shadowDistance * $e[2],
+            ];
+
+            $xst = $xs;
+            $xst[2] *= $earthOblateness;
+            $polar = Coordinates::cartpol($xst);
+
+            if ($iteration === 0) {
+                $cosLatitude = cos($polar[1]);
+                $sinLatitude = sin($polar[1]);
+                $flattening = 1.0 - self::EARTH_OBLATENESS;
+                $cc = 1.0 / sqrt($cosLatitude * $cosLatitude + $flattening * $flattening * $sinLatitude * $sinLatitude);
+                $earthOblateness = $flattening * $flattening * $cc;
+                continue;
+            }
+
+            $longitude = rad2deg($polar[0] - deg2rad($sidereal));
+            $longitude = self::normalizeGeographicLongitude($longitude);
+            $latitude = rad2deg($polar[1]);
+
+            $geopos[0] = $longitude;
+            $geopos[1] = $latitude;
+
+            $xst = Coordinates::polcart($polar);
+            $moonToPlace = [
+                $moon[0] - $xst[0],
+                $moon[1] - $xst[1],
+                $moon[2] - $xst[2],
+            ];
+            $moonSun = [
+                $moon[0] - $sun[0],
+                $moon[1] - $sun[1],
+                $moon[2] - $sun[2],
+            ];
+
+            $moonPlaceDistance = self::vectorLength($moonToPlace);
+            $moonSunDistance = self::vectorLength($moonSun);
+
+            $dcore[0] = ($moonPlaceDistance / $moonSunDistance * (self::DSUN - self::DMOON) - self::DMOON)
+                * $cosf1
+                * self::AUNIT_METERS
+                / 1000.0;
+            $dcore[1] = ($moonPlaceDistance / $moonSunDistance * (self::DSUN + self::DMOON) + self::DMOON)
+                * $cosf2
+                * self::AUNIT_METERS
+                / 1000.0;
+            $dcore[2] = $r0 * self::AUNIT_METERS / 1000.0;
+            $dcore[3] = $d0 * self::AUNIT_METERS / 1000.0;
+            $dcore[4] = $D0 * self::AUNIT_METERS / 1000.0;
+            $dcore[5] = $cosf1;
+            $dcore[6] = $cosf2;
+
+            if (($rc & Catalog::SE_ECL_PARTIAL) === 0) {
+                $rc |= $dcore[0] > 0.0 ? Catalog::SE_ECL_ANNULAR : Catalog::SE_ECL_TOTAL;
+            }
+
+            return [
+                'rc' => $rc,
+                'geopos' => $geopos,
+                'dcore' => $dcore,
+                'error' => '',
+            ];
+        }
+
+        return [
+            'rc' => 0,
+            'geopos' => $geopos,
+            'dcore' => $dcore,
+            'error' => sprintf('no solar eclipse at tjd = %.6F', $tjdUt),
+        ];
+    }
+
+    /**
+     * @return array{longitude:float, latitude:float, how:array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string}}
+     */
+    private static function solarWhereMaximum(float $tjdUt, int $flags, float $longitude, float $latitude): array
+    {
+        $evaluate = static function (float $candidateLongitude, float $candidateLatitude) use ($tjdUt, $flags): array {
+            $how = self::solarHow(
+                $tjdUt,
+                new Observer(
+                    self::normalizeGeographicLongitude($candidateLongitude),
+                    max(-89.999, min(89.999, $candidateLatitude)),
+                    0.0
+                ),
+                $flags
+            );
+
+            return [
+                'longitude' => self::normalizeGeographicLongitude($candidateLongitude),
+                'latitude' => max(-89.999, min(89.999, $candidateLatitude)),
+                'score' => self::solarWhereScore($how),
+                'how' => $how,
+            ];
+        };
+
+        $best = $evaluate($longitude, $latitude);
+
+        foreach ([10.0, 5.0, 2.0, 1.0, 0.5, 0.2, 0.1, 0.05] as $step) {
+            do {
+                $improved = false;
+                $current = $best;
+
+                foreach ([-1, 0, 1] as $longitudeDirection) {
+                    foreach ([-1, 0, 1] as $latitudeDirection) {
+                        if ($longitudeDirection === 0 && $latitudeDirection === 0) {
+                            continue;
+                        }
+
+                        $candidate = $evaluate(
+                            $current['longitude'] + $longitudeDirection * $step,
+                            $current['latitude'] + $latitudeDirection * $step
+                        );
+
+                        if ($candidate['score'] > $best['score']) {
+                            $best = $candidate;
+                            $improved = true;
+                        }
+                    }
+                }
+            } while ($improved);
+        }
+
+        return [
+            'longitude' => $best['longitude'],
+            'latitude' => $best['latitude'],
+            'how' => $best['how'],
+        ];
+    }
+
+    /**
+     * @param array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string} $how
+     */
+    private static function solarWhereScore(array $how): float
+    {
+        if ($how['rc'] === SwissDate::ERR) {
+            return -INF;
+        }
+
+        return $how['attr'][2] * 1000000.0
+            + $how['attr'][0] * 1000.0
+            - $how['attr'][7];
+    }
+
+    private static function normalizeGeographicLongitude(float $longitude): float
+    {
+        $longitude = Angle::degnorm($longitude);
+
+        return $longitude > 180.0 ? $longitude - 360.0 : $longitude;
     }
 
     /**
