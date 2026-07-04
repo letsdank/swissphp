@@ -24,6 +24,7 @@ use SwissEph\OsculatingApogee;
 use SwissEph\Phenomena;
 use SwissEph\Precession;
 use SwissEph\SiderealTime;
+use SwissEph\SolarEclipseResult;
 use SwissEph\SolarPosition;
 use SwissEph\SwissDate;
 use SwissEph\TrueNode;
@@ -162,6 +163,42 @@ final class CalculatorTest extends TestCase
             Eclipse::lunarWhenResult(2451545.0)->maximumTime(),
             $result->maximumTime(),
             1e-12
+        );
+    }
+
+    public function testCalculatorSolEclipseHowDelegatesToEclipse(): void
+    {
+        $observer = new Observer(-104.9903, 39.7392, 1609.0);
+
+        self::assertSame(
+            Eclipse::solarHow(2460409.25, $observer),
+            Calculator::solEclipseHow(2460409.25, $observer)
+        );
+    }
+
+    public function testCalculatorSolEclipseHowResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::solEclipseHowResult(
+            2460409.25,
+            new Observer(-104.9903, 39.7392, 1609.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseResult::class, $result);
+        self::assertFalse($result->isEclipse());
+    }
+
+    public function testCalculatorSolEclipseHowResultPreservesErrors(): void
+    {
+        $result = Calculator::solEclipseHowResult(
+            2460409.25,
+            new Observer(-104.9903, 39.7392, 30000.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseResult::class, $result);
+        self::assertFalse($result->isEclipse());
+        self::assertSame(
+            'location for eclipses must be between -500 and 25000 m above sea',
+            $result->result->error
         );
     }
 

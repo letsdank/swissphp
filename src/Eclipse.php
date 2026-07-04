@@ -469,6 +469,50 @@ final class Eclipse
     }
 
     /**
+     * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_how().
+     *
+     * @return array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function solarHow(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+    ): array
+    {
+        if (
+            $observer->altitude < Observer::MIN_GEOGRAPHIC_ALTITUDE
+            || $observer->altitude > Observer::MAX_GEOGRAPHIC_LATITUDE
+        ) {
+            return [
+                'rc' => SwissDate::ERR,
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => sprintf(
+                    'location for eclipses must be between %.0f and %.0f m above sea',
+                    Observer::MIN_GEOGRAPHIC_ALTITUDE,
+                    Observer::MAX_GEOGRAPHIC_LATITUDE
+                ),
+            ];
+        }
+
+        return [
+            'rc' => SwissDate::ERR,
+            'attr' => array_fill(0, 20, 0.0),
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => 'solar eclipse circumstances are not implemented yet',
+        ];
+    }
+
+    public static function solarHowResult(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+    ): SolarEclipseResult
+    {
+        return SolarEclipseResult::fromArray(self::solarHow($tjdUt, $observer, $flags));
+    }
+
+    /**
      * @param array<int, float> $tret
      */
     private static function localLunarVisibilityFlags(

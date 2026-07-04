@@ -252,6 +252,29 @@ final class Calculator
     }
 
     /**
+     * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_how().
+     *
+     * @return array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function solEclipseHow(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+    ): array
+    {
+        return Eclipse::solarHow($tjdUt, $observer, $flags);
+    }
+
+    public static function solEclipseHowResult(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+    ): SolarEclipseResult
+    {
+        return Eclipse::solarHowResult($tjdUt, $observer, $flags);
+    }
+
+    /**
      * Apparent geocentric ecliptic position for Sun and Moshier planets.
      *
      * This is an explicit apparent API and does not change swe_calc()-style calc().
