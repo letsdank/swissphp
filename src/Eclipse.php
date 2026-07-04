@@ -502,8 +502,8 @@ final class Eclipse
             | Catalog::SEFLG_SPEED
             | Catalog::SEFLG_EQUATORIAL;
 
-        $sun = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $calcFlags);
-        $moon = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $calcFlags);
+        $sun = Calculator::calcTopoUt($tjdUt, Catalog::SE_SUN, $calcFlags, $observer);
+        $moon = Calculator::calcTopoUt($tjdUt, Catalog::SE_MOON, $calcFlags, $observer);
 
         if ($sun['rc'] === SwissDate::ERR || $moon['rc'] === SwissDate::ERR) {
             return [
@@ -535,10 +535,16 @@ final class Eclipse
         $rc = 0;
 
         if ($attr[7] < $sunRadius + $moonRadius) {
-            $rc = Catalog::SE_ECL_PARTIAL;
             $attr[0] = max(0.0, min(1.0, ($sunRadius + $moonRadius - $attr[7]) / (2.0 * $sunRadius)));
             $attr[2] = self::discObscuration($sunRadius, $moonRadius, $attr[7]);
-            $attr[8] = $attr[0];
+
+            if ($attr[7] <= abs($moonRadius - $sunRadius)) {
+                $rc = $moonRadius >= $sunRadius ? Catalog::SE_ECL_TOTAL : Catalog::SE_ECL_ANNULAR;
+                $attr[8] = $moonRadius >= $sunRadius ? $attr[1] : $attr[0];
+            } else {
+                $rc = Catalog::SE_ECL_PARTIAL;
+                $attr[8] = $attr[0];
+            }
         }
 
         $attr[9] = -99999999.0;

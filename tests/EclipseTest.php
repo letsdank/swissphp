@@ -287,37 +287,69 @@ final class EclipseTest extends TestCase
     public function testSolarHowReturnsBasicGeometry(): void
     {
         $result = Eclipse::solarHow(
-            2460409.25,
+            2460409.224305555,
             new Observer(-104.9903, 39.7392, 1609.0)
         );
 
         self::assertSame(Catalog::SE_ECL_PARTIAL, $result['rc']);
         self::assertSame('', $result['error']);
         self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
-        self::assertEqualsWithDelta(0.07265129629489425, $result['attr'][0], 1e-12);
-        self::assertEqualsWithDelta(1.0393814446430754, $result['attr'][1], 1e-12);
-        self::assertEqualsWithDelta(0.02347728913012229, $result['attr'][2], 1e-12);
-        self::assertEqualsWithDelta(333.2531353545068, $result['attr'][4], 1e-12);
-        self::assertEqualsWithDelta(55.00145293239829, $result['attr'][5], 1e-12);
-        self::assertEqualsWithDelta(55.01063011571226, $result['attr'][6], 1e-12);
-        self::assertEqualsWithDelta(0.5041372312251127, $result['attr'][7], 1e-12);
+        self::assertEqualsWithDelta(0.20984960298279676, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(1.0524028059918422, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(0.11319702966267742, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(319.4585096022168, $result['attr'][4], 1e-12);
+        self::assertEqualsWithDelta(51.038560775196515, $result['attr'][5], 1e-12);
+        self::assertEqualsWithDelta(51.04915968756047, $result['attr'][6], 1e-12);
+        self::assertEqualsWithDelta(0.43458425674577317, $result['attr'][7], 1e-12);
         self::assertEqualsWithDelta($result['attr'][0], $result['attr'][8], 1e-15);
         self::assertSame(-99999999.0, $result['attr'][9]);
         self::assertSame(-99999999.0, $result['attr'][10]);
     }
 
+    public function testSolarHowDetectsTotalSolarEclipseGeometry(): void
+    {
+        $result = Eclipse::solarHow(
+            2460409.222222222,
+            new Observer(-82.0, 20.0, 0.0)
+        );
+
+        self::assertSame(Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(1.0570773811676644, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(0.00036379674764709755, $result['attr'][7], 1e-12);
+        self::assertEqualsWithDelta($result['attr'][1], $result['attr'][8], 1e-15);
+    }
+
+    public function testSolarHowDetectsAnnularSolarEclipseGeometry(): void
+    {
+        $result = Eclipse::solarHow(
+            2460232.200173611,
+            new Observer(-79.15, 33.07, 0.0)
+        );
+
+        self::assertSame(Catalog::SE_ECL_ANNULAR, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(0.9756893403481246, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(0.9516066314584308, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(0.9055564213989262, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(0.0000610910691333284, $result['attr'][7], 1e-12);
+        self::assertEqualsWithDelta($result['attr'][0], $result['attr'][8], 1e-15);
+    }
+
     public function testSolarHowResultWrapsArrayResult(): void
     {
         $result = Eclipse::solarHowResult(
-            2460409.25,
+            2460409.224305555,
             new Observer(-104.9903, 39.7392, 1609.0)
         );
 
         self::assertSame('', $result->result->error);
         self::assertTrue($result->isEclipse());
         self::assertTrue($result->isPartial());
-        self::assertEqualsWithDelta(55.01063011571226, $result->sunApparentAltitude(), 1e-12);
-        self::assertEqualsWithDelta(0.5041372312251127, $result->elongation(), 1e-12);
+        self::assertEqualsWithDelta(51.04915968756047, $result->sunApparentAltitude(), 1e-12);
+        self::assertEqualsWithDelta(0.43458425674577317, $result->elongation(), 1e-12);
     }
 
     public function testSolarHowRejectsInvalidObserverAltitude(): void

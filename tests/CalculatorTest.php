@@ -171,15 +171,15 @@ final class CalculatorTest extends TestCase
         $observer = new Observer(-104.9903, 39.7392, 1609.0);
 
         self::assertSame(
-            Eclipse::solarHow(2460409.25, $observer),
-            Calculator::solEclipseHow(2460409.25, $observer)
+            Eclipse::solarHow(2460409.224305555, $observer),
+            Calculator::solEclipseHow(2460409.224305555, $observer)
         );
     }
 
     public function testCalculatorSolEclipseHowResultDelegatesToEclipse(): void
     {
         $result = Calculator::solEclipseHowResult(
-            2460409.25,
+            2460409.224305555,
             new Observer(-104.9903, 39.7392, 1609.0)
         );
 
