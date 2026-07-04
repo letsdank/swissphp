@@ -537,6 +537,7 @@ final class Eclipse
         if ($attr[7] < $sunRadius + $moonRadius) {
             $rc = Catalog::SE_ECL_PARTIAL;
             $attr[0] = max(0.0, min(1.0, ($sunRadius + $moonRadius - $attr[7]) / (2.0 * $sunRadius)));
+            $attr[2] = self::discObscuration($sunRadius, $moonRadius, $attr[7]);
             $attr[8] = $attr[0];
         }
 
@@ -777,5 +778,43 @@ final class Eclipse
         }
 
         return rad2deg(atan2($diameterAu / 2.0, $distanceAu));
+    }
+
+    private static function discObscuration(float $sunRadius, float $moonRadius, float $separation): float
+    {
+        if ($sunRadius <= 0.0 || $moonRadius <= 0.0 || $separation >= $sunRadius + $moonRadius) {
+            return 0.0;
+        }
+
+        if ($separation <= abs($moonRadius - $sunRadius)) {
+            $coveredRadius = min($sunRadius, $moonRadius);
+
+            return min(1.0, ($coveredRadius * $coveredRadius) / ($sunRadius * $sunRadius));
+        }
+
+        $sunAngle = acos(self::clamp(
+            ($separation * $separation + $sunRadius * $sunRadius - $moonRadius * $moonRadius)
+            / (2.0 * $separation * $sunRadius),
+            -1.0,
+            1.0
+        ));
+
+        $moonAngle = acos(self::clamp(
+            ($separation * $separation + $moonRadius * $moonRadius - $sunRadius * $sunRadius)
+            / (2.0 * $separation * $moonRadius),
+            -1.0,
+            1.0
+        ));
+
+        $lensArea = $sunRadius * $sunRadius * $sunAngle
+            + $moonRadius * $moonRadius * $moonAngle
+            - 0.5 * sqrt(max(0.0,
+                (-$separation + $sunRadius + $moonRadius)
+                * ($separation + $sunRadius - $moonRadius)
+                * ($separation - $sunRadius + $moonRadius)
+                * ($separation + $sunRadius + $moonRadius)
+            ));
+
+        return max(0.0, min(1.0, $lensArea / (M_PI * $sunRadius * $sunRadius)));
     }
 }

@@ -296,7 +296,7 @@ final class EclipseTest extends TestCase
         self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
         self::assertEqualsWithDelta(0.07265129629489425, $result['attr'][0], 1e-12);
         self::assertEqualsWithDelta(1.0393814446430754, $result['attr'][1], 1e-12);
-        self::assertSame(0.0, $result['attr'][2]);
+        self::assertEqualsWithDelta(0.02347728913012229, $result['attr'][2], 1e-12);
         self::assertEqualsWithDelta(333.2531353545068, $result['attr'][4], 1e-12);
         self::assertEqualsWithDelta(55.00145293239829, $result['attr'][5], 1e-12);
         self::assertEqualsWithDelta(55.01063011571226, $result['attr'][6], 1e-12);
