@@ -502,8 +502,8 @@ final class Eclipse
             | Catalog::SEFLG_SPEED
             | Catalog::SEFLG_EQUATORIAL;
 
-        $sun = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $calcFlags);
-        $moon = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $calcFlags);
+        $sun = Calculator::calcTopoUt($tjdUt, Catalog::SE_SUN, $calcFlags, $observer);
+        $moon = Calculator::calcTopoUt($tjdUt, Catalog::SE_MOON, $calcFlags, $observer);
 
         if ($sun['rc'] === SwissDate::ERR || $moon['rc'] === SwissDate::ERR) {
             return [
