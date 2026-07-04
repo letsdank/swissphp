@@ -322,6 +322,22 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta($result['attr'][1], $result['attr'][8], 1e-15);
     }
 
+    public function testSolarHowDetectsAnnularSolarEclipseGeometry(): void
+    {
+        $result = Eclipse::solarHow(
+            2460232.200173611,
+            new Observer(-79.15, 33.07, 0.0)
+        );
+
+        self::assertSame(Catalog::SE_ECL_ANNULAR, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(0.9756893403481246, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(0.9516066314584308, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(0.9055564213989262, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(0.0000610910691333284, $result['attr'][7], 1e-12);
+        self::assertEqualsWithDelta($result['attr'][0], $result['attr'][8], 1e-15);
+    }
+
     public function testSolarHowResultWrapsArrayResult(): void
     {
         $result = Eclipse::solarHowResult(
