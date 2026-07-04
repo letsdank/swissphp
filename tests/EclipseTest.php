@@ -285,24 +285,31 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2451564.7974327924, $result['tret'][9], 1e-9);
     }
 
-    public function testSolarWhereReturnsExplicitNotImplementedError(): void
+    public function testSolarWhereReturnsBasicGeometry(): void
     {
-        $result = Eclipse::solarWhere(2460409.25);
+        $result = Eclipse::solarWhere(2460409.222222222);
 
-        self::assertSame(SwissDate::ERR, $result['rc']);
-        self::assertSame(array_fill(0, 10, 0.0), $result['geopos']);
-        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
-        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
-        self::assertSame('solar eclipse location is not implemented yet', $result['error']);
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(-81.98639653728043, $result['geopos'][0], 1e-12);
+        self::assertEqualsWithDelta(19.984901425093963, $result['geopos'][1], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(1.057079344450735, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(-188.1032147468757, $result['attr'][3], 1e-9);
+        self::assertEqualsWithDelta(0.00042287745690826735, $result['attr'][7], 1e-12);
+        self::assertEqualsWithDelta(-188.1032147468757, $result['dcore'][0], 1e-9);
+        self::assertEqualsWithDelta(6780.885492356764, $result['dcore'][1], 1e-9);
     }
 
     public function testSolarWhereResultWrapsArrayResult(): void
     {
-        $result = Eclipse::solarWhereResult(2460409.25);
+        $result = Eclipse::solarWhereResult(2460409.222222222);
 
         self::assertInstanceOf(SolarEclipseResult::class, $result);
-        self::assertFalse($result->isEclipse());
-        self::assertSame('solar eclipse location is not implemented yet', $result->result->error);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(-188.1032147468757, $result->coreShadowDiameterKm(), 1e-9);
     }
 
     public function testSolarHowReturnsBasicGeometry(): void
