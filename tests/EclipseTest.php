@@ -310,6 +310,8 @@ final class EclipseTest extends TestCase
         self::assertTrue($result->isEclipse());
         self::assertTrue($result->isTotal());
         self::assertEqualsWithDelta(-188.1032147468757, $result->coreShadowDiameterKm(), 1e-9);
+        self::assertEqualsWithDelta(-81.98639653728043, $result->geographicLongitude(), 1e-12);
+        self::assertEqualsWithDelta(19.984901425093963, $result->geographicLatitude(), 1e-12);
     }
 
     public function testSolarHowReturnsBasicGeometry(): void
