@@ -184,7 +184,8 @@ final class CalculatorTest extends TestCase
         );
 
         self::assertInstanceOf(SolarEclipseResult::class, $result);
-        self::assertFalse($result->isEclipse());
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isPartial());
     }
 
     public function testCalculatorSolEclipseHowResultPreservesErrors(): void

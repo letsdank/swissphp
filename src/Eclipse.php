@@ -495,11 +495,60 @@ final class Eclipse
             ];
         }
 
+        $attr = array_fill(0, 20, 0.0);
+        $dcore = array_fill(0, 10, 0.0);
+
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags)
+            | Catalog::SEFLG_SPEED
+            | Catalog::SEFLG_EQUATORIAL;
+
+        $sun = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $calcFlags);
+        $moon = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $calcFlags);
+
+        if ($sun['rc'] === SwissDate::ERR || $moon['rc'] === SwissDate::ERR) {
+            return [
+                'rc' => SwissDate::ERR,
+                'attr' => $attr,
+                'dcore' => $dcore,
+                'error' => $sun['error'] !== '' ? $sun['error'] : $moon['error'],
+            ];
+        }
+
+        $horizontal = AzimuthAltitude::azalt(
+            $tjdUt,
+            Catalog::SE_EQU2HOR,
+            $observer,
+            0.0,
+            10.0,
+            $sun['xx']
+        );
+
+        $attr[4] = $horizontal[0];
+        $attr[5] = $horizontal[1];
+        $attr[6] = $horizontal[2];
+        $attr[7] = self::angularSeparationDegrees($sun['xx'], $moon['xx']);
+        $attr[1] = self::angularDiameterRatio($sun['xx'][2], $moon['xx'][2]);
+
+        $sunRadius = self::angularRadiusDegrees(self::DSUN, $sun['xx'][2]);
+        $moonRadius = self::angularRadiusDegrees(self::DMOON, $moon['xx'][2]);
+
+        $rc = 0;
+
+        if ($attr[7] < $sunRadius + $moonRadius) {
+            $rc = Catalog::SE_ECL_PARTIAL;
+            $attr[0] = max(0.0, min(1.0, ($sunRadius + $moonRadius - $attr[7]) / (2.0 * $sunRadius)));
+            $attr[2] = self::discObscuration($sunRadius, $moonRadius, $attr[7]);
+            $attr[8] = $attr[0];
+        }
+
+        $attr[9] = -99999999.0;
+        $attr[10] = -99999999.0;
+
         return [
-            'rc' => SwissDate::ERR,
-            'attr' => array_fill(0, 20, 0.0),
-            'dcore' => array_fill(0, 10, 0.0),
-            'error' => 'solar eclipse circumstances are not implemented yet',
+            'rc' => $rc,
+            'attr' => $attr,
+            'dcore' => $dcore,
+            'error' => '',
         ];
     }
 
@@ -694,5 +743,78 @@ final class Eclipse
     private static function clamp(float $value, float $min, float $max): float
     {
         return max($min, min($max, $value));
+    }
+
+    /**
+     * @param array<int, float> $first
+     * @param array<int, float> $second
+     */
+    private static function angularSeparationDegrees(array $first, array $second): float
+    {
+        $firstLongitude = deg2rad($first[0]);
+        $firstLatitude = deg2rad($first[1]);
+        $secondLongitude = deg2rad($second[0]);
+        $secondLatitude = deg2rad($second[1]);
+
+        $cosine = sin($firstLatitude) * sin($secondLatitude)
+            + cos($firstLatitude) * cos($secondLatitude) * cos($firstLongitude - $secondLongitude);
+
+        return rad2deg(acos(self::clamp($cosine, -1.0, 1.0)));
+    }
+
+    private static function angularDiameterRatio(float $sunDistance, float $moonDistance): float
+    {
+        if ($sunDistance <= 0.0 || $moonDistance <= 0.0) {
+            return 0.0;
+        }
+
+        return (self::DMOON / $moonDistance) / (self::DSUN / $sunDistance);
+    }
+
+    private static function angularRadiusDegrees(float $diameterAu, float $distanceAu): float
+    {
+        if ($diameterAu <= 0.0 || $distanceAu <= 0.0) {
+            return 0.0;
+        }
+
+        return rad2deg(atan2($diameterAu / 2.0, $distanceAu));
+    }
+
+    private static function discObscuration(float $sunRadius, float $moonRadius, float $separation): float
+    {
+        if ($sunRadius <= 0.0 || $moonRadius <= 0.0 || $separation >= $sunRadius + $moonRadius) {
+            return 0.0;
+        }
+
+        if ($separation <= abs($moonRadius - $sunRadius)) {
+            $coveredRadius = min($sunRadius, $moonRadius);
+
+            return min(1.0, ($coveredRadius * $coveredRadius) / ($sunRadius * $sunRadius));
+        }
+
+        $sunAngle = acos(self::clamp(
+            ($separation * $separation + $sunRadius * $sunRadius - $moonRadius * $moonRadius)
+            / (2.0 * $separation * $sunRadius),
+            -1.0,
+            1.0
+        ));
+
+        $moonAngle = acos(self::clamp(
+            ($separation * $separation + $moonRadius * $moonRadius - $sunRadius * $sunRadius)
+            / (2.0 * $separation * $moonRadius),
+            -1.0,
+            1.0
+        ));
+
+        $lensArea = $sunRadius * $sunRadius * $sunAngle
+            + $moonRadius * $moonRadius * $moonAngle
+            - 0.5 * sqrt(max(0.0,
+                (-$separation + $sunRadius + $moonRadius)
+                * ($separation + $sunRadius - $moonRadius)
+                * ($separation - $sunRadius + $moonRadius)
+                * ($separation + $sunRadius + $moonRadius)
+            ));
+
+        return max(0.0, min(1.0, $lensArea / (M_PI * $sunRadius * $sunRadius)));
     }
 }
