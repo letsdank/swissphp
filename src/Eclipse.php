@@ -528,11 +528,23 @@ final class Eclipse
         $attr[6] = $horizontal[2];
         $attr[7] = self::angularSeparationDegrees($sun['xx'], $moon['xx']);
         $attr[1] = self::angularDiameterRatio($sun['xx'][2], $moon['xx'][2]);
+
+        $sunRadius = self::angularRadiusDegrees(self::DSUN, $sun['xx'][2]);
+        $moonRadius = self::angularRadiusDegrees(self::DMOON, $moon['xx'][2]);
+
+        $rc = 0;
+
+        if ($attr[7] < $sunRadius + $moonRadius) {
+            $rc = Catalog::SE_ECL_PARTIAL;
+            $attr[0] = max(0.0, min(1.0, ($sunRadius + $moonRadius - $attr[7]) / (2.0 * $sunRadius)));
+            $attr[8] = $attr[0];
+        }
+
         $attr[9] = -99999999.0;
         $attr[10] = -99999999.0;
 
         return [
-            'rc' => 0,
+            'rc' => $rc,
             'attr' => $attr,
             'dcore' => $dcore,
             'error' => '',
@@ -756,5 +768,14 @@ final class Eclipse
         }
 
         return (self::DMOON / $moonDistance) / (self::DSUN / $sunDistance);
+    }
+
+    private static function angularRadiusDegrees(float $diameterAu, float $distanceAu): float
+    {
+        if ($diameterAu <= 0.0 || $distanceAu <= 0.0) {
+            return 0.0;
+        }
+
+        return rad2deg(atan2($diameterAu / 2.0, $distanceAu));
     }
 }

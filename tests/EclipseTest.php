@@ -291,16 +291,17 @@ final class EclipseTest extends TestCase
             new Observer(-104.9903, 39.7392, 1609.0)
         );
 
-        self::assertSame(0, $result['rc']);
+        self::assertSame(Catalog::SE_ECL_PARTIAL, $result['rc']);
         self::assertSame('', $result['error']);
         self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
-        self::assertSame(0.0, $result['attr'][0]);
+        self::assertEqualsWithDelta(0.07265129629489425, $result['attr'][0], 1e-12);
         self::assertEqualsWithDelta(1.0393814446430754, $result['attr'][1], 1e-12);
         self::assertSame(0.0, $result['attr'][2]);
         self::assertEqualsWithDelta(333.2531353545068, $result['attr'][4], 1e-12);
         self::assertEqualsWithDelta(55.00145293239829, $result['attr'][5], 1e-12);
         self::assertEqualsWithDelta(55.01063011571226, $result['attr'][6], 1e-12);
         self::assertEqualsWithDelta(0.5041372312251127, $result['attr'][7], 1e-12);
+        self::assertEqualsWithDelta($result['attr'][0], $result['attr'][8], 1e-15);
         self::assertSame(-99999999.0, $result['attr'][9]);
         self::assertSame(-99999999.0, $result['attr'][10]);
     }
@@ -313,6 +314,8 @@ final class EclipseTest extends TestCase
         );
 
         self::assertSame('', $result->result->error);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isPartial());
         self::assertEqualsWithDelta(55.01063011571226, $result->sunApparentAltitude(), 1e-12);
         self::assertEqualsWithDelta(0.5041372312251127, $result->elongation(), 1e-12);
     }
