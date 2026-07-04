@@ -187,6 +187,21 @@ final class CalculatorTest extends TestCase
         self::assertFalse($result->isEclipse());
     }
 
+    public function testCalculatorSolEclipseHowResultPreservesErrors(): void
+    {
+        $result = Calculator::solEclipseHowResult(
+            2460409.25,
+            new Observer(-104.9903, 39.7392, 30000.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseResult::class, $result);
+        self::assertFalse($result->isEclipse());
+        self::assertSame(
+            'location for eclipses must be between -500 and 25000 m above sea',
+            $result->result->error
+        );
+    }
+
     public function testCalcSunReturnsSolarPositionWithSpeed(): void
     {
         $tjdEt = 2451545.000738760;
