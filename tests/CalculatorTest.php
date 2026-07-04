@@ -166,6 +166,23 @@ final class CalculatorTest extends TestCase
         );
     }
 
+    public function testCalculatorSolEclipseWhereDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::solarWhere(2460409.25),
+            Calculator::solEclipseWhere(2460409.25)
+        );
+    }
+
+    public function testCalculatorSolEclipseWhereResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::solEclipseWhereResult(2460409.25);
+
+        self::assertInstanceOf(SolarEclipseResult::class, $result);
+        self::assertFalse($result->isEclipse());
+        self::assertSame('solar eclipse location is not implemented yet', $result->result->error);
+    }
+
     public function testCalculatorSolEclipseHowDelegatesToEclipse(): void
     {
         $observer = new Observer(-104.9903, 39.7392, 1609.0);
