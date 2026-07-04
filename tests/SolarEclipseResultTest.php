@@ -14,6 +14,10 @@ final class SolarEclipseResultTest extends TestCase
     {
         $array = [
             'rc' => Catalog::SE_ECL_ANNULAR,
+            'geopos' => [
+                0 => -81.98639653728043,
+                1 => 19.984901425093963,
+            ],
             'attr' => [
                 0 => 0.95,
                 1 => 0.97,
@@ -39,6 +43,8 @@ final class SolarEclipseResultTest extends TestCase
         self::assertFalse($result->isTotal());
         self::assertTrue($result->isAnnular());
         self::assertFalse($result->isPartial());
+        self::assertSame(-81.98639653728043, $result->geographicLongitude());
+        self::assertSame(19.984901425093963, $result->geographicLatitude());
         self::assertSame(0.95, $result->magnitude());
         self::assertSame(0.97, $result->lunarSolarDiameterRatio());
         self::assertSame(0.91, $result->obscuration());
