@@ -495,11 +495,46 @@ final class Eclipse
             ];
         }
 
+        $attr = array_fill(0, 20, 0.0);
+        $dcore = array_fill(0, 10, 0.0);
+
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags)
+            | Catalog::SEFLG_SPEED
+            | Catalog::SEFLG_EQUATORIAL;
+
+        $sun = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $calcFlags);
+        $moon = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $calcFlags);
+
+        if ($sun['rc'] === SwissDate::ERR || $moon['rc'] === SwissDate::ERR) {
+            return [
+                'rc' => SwissDate::ERR,
+                'attr' => $attr,
+                'dcore' => $dcore,
+                'error' => $sun['error'] !== '' ? $sun['error'] : $moon['error'],
+            ];
+        }
+
+        $horizontal = AzimuthAltitude::azalt(
+            $tjdUt,
+            Catalog::SE_EQU2HOR,
+            $observer,
+            0.0,
+            10.0,
+            $sun['xx']
+        );
+
+        $attr[4] = $horizontal[0];
+        $attr[5] = $horizontal[1];
+        $attr[6] = $horizontal[2];
+        $attr[7] = self::angularSeparationDegrees($sun['xx'], $moon['xx']);
+        $attr[9] = -99999999.0;
+        $attr[10] = -99999999.0;
+
         return [
-            'rc' => SwissDate::ERR,
-            'attr' => array_fill(0, 20, 0.0),
-            'dcore' => array_fill(0, 10, 0.0),
-            'error' => 'solar eclipse circumstances are not implemented yet',
+            'rc' => 0,
+            'attr' => $attr,
+            'dcore' => $dcore,
+            'error' => '',
         ];
     }
 
@@ -694,5 +729,22 @@ final class Eclipse
     private static function clamp(float $value, float $min, float $max): float
     {
         return max($min, min($max, $value));
+    }
+
+    /**
+     * @param array<int, float> $first
+     * @param array<int, float> $second
+     */
+    private static function angularSeparationDegrees(array $first, array $second): float
+    {
+        $firstLongitude = deg2rad($first[0]);
+        $firstLatitude = deg2rad($first[1]);
+        $secondLongitude = deg2rad($second[0]);
+        $secondLatitude = deg2rad($second[1]);
+
+        $cosine = sin($firstLatitude) * sin($secondLatitude)
+            + cos($firstLatitude) * cos($secondLatitude) * cos($firstLongitude - $secondLongitude);
+
+        return rad2deg(acos(self::clamp($cosine, -1.0, 1.0)));
     }
 }
