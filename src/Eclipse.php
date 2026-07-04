@@ -527,6 +527,7 @@ final class Eclipse
         $attr[5] = $horizontal[1];
         $attr[6] = $horizontal[2];
         $attr[7] = self::angularSeparationDegrees($sun['xx'], $moon['xx']);
+        $attr[1] = self::angularDiameterRatio($sun['xx'][2], $moon['xx'][2]);
         $attr[9] = -99999999.0;
         $attr[10] = -99999999.0;
 
@@ -746,5 +747,14 @@ final class Eclipse
             + cos($firstLatitude) * cos($secondLatitude) * cos($firstLongitude - $secondLongitude);
 
         return rad2deg(acos(self::clamp($cosine, -1.0, 1.0)));
+    }
+
+    private static function angularDiameterRatio(float $sunDistance, float $moonDistance): float
+    {
+        if ($sunDistance <= 0.0 || $moonDistance <= 0.0) {
+            return 0.0;
+        }
+
+        return (self::DMOON / $moonDistance) / (self::DSUN / $sunDistance);
     }
 }
