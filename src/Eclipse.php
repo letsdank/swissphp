@@ -479,6 +479,22 @@ final class Eclipse
         int      $flags = Catalog::SEFLG_DEFAULTEPH,
     ): array
     {
+        if (
+            $observer->altitude < Observer::MIN_GEOGRAPHIC_ALTITUDE
+            || $observer->altitude > Observer::MAX_GEOGRAPHIC_LATITUDE
+        ) {
+            return [
+                'rc' => SwissDate::ERR,
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => sprintf(
+                    'location for eclipses must be between %.0f and %.0f m above sea',
+                    Observer::MIN_GEOGRAPHIC_ALTITUDE,
+                    Observer::MAX_GEOGRAPHIC_LATITUDE
+                ),
+            ];
+        }
+
         return [
             'rc' => SwissDate::ERR,
             'attr' => array_fill(0, 20, 0.0),

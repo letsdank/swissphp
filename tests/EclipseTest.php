@@ -309,4 +309,20 @@ final class EclipseTest extends TestCase
         self::assertFalse($result->isEclipse());
         self::assertSame('solar eclipse circumstances are not implemented yet', $result->result->error);
     }
+
+    public function testSolarHowRejectsInvalidObserverAltitude(): void
+    {
+        $result = Eclipse::solarHow(
+            2460409.25,
+            new Observer(-104.9903, 39.7392, 30000.0)
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
+        self::assertSame(
+            'location for eclipses must be between -500 and 25000 m above sea',
+            $result['error']
+        );
+    }
 }
