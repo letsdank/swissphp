@@ -167,6 +167,29 @@ final class CalculatorTest extends TestCase
         );
     }
 
+    public function testCalculatorSolEclipseWhenLocDelegatesToEclipse(): void
+    {
+        $observer = new Observer(-104.9903, 39.7392, 1609.0);
+
+        self::assertSame(
+            Eclipse::solarWhenLoc(2460400.0, $observer),
+            Calculator::solEclipseWhenLoc(2460400.0, $observer)
+        );
+    }
+
+    public function testCalculatorSolEclipseWhenLocResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::solEclipseWhenLocResult(
+            2460000.0,
+            new Observer(-104.9903, 39.7392, 1609.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isPartial());
+        self::assertEqualsWithDelta(2460232.1618292737, $result->maximumTime(), 1e-9);
+    }
+
     public function testCalculatorSolEclipseWhenGlobDelegatesToEclipse(): void
     {
         self::assertSame(

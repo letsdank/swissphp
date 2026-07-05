@@ -286,6 +286,58 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2451564.7974327924, $result['tret'][9], 1e-9);
     }
 
+    public function testSolarWhenLocFindsLocalMaximum(): void
+    {
+        $result = Eclipse::solarWhenLoc(
+            2460000.0,
+            new Observer(-104.9903, 39.7392, 1609.0)
+        );
+
+        self::assertSame(Catalog::SE_ECL_PARTIAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460232.1618292737, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2460232.1039323257, $result['tret'][1], 1e-9);
+        self::assertEqualsWithDelta(2460232.2280774666, $result['tret'][4], 1e-9);
+        self::assertEqualsWithDelta(0.8934100373498459, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(0.9469870262444778, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(0.8437355111304065, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(0.04280175074270825, $result['attr'][7], 1e-12);
+    }
+
+    public function testSolarWhenLocResultWrapsArrayResult(): void
+    {
+        $result = Eclipse::solarWhenLocResult(
+            2460000.0,
+            new Observer(-104.9903, 39.7392, 1609.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isPartial());
+        self::assertEqualsWithDelta(2460232.1618292737, $result->maximumTime(), 1e-9);
+        self::assertEqualsWithDelta(2460232.1039323257, $result->firstContactTime(), 1e-9);
+        self::assertEqualsWithDelta(2460232.2280774666, $result->fourthContactTime(), 1e-9);
+        self::assertEqualsWithDelta(0.8934100373498459, $result->magnitude(), 1e-12);
+        self::assertEqualsWithDelta(0.8437355111304065, $result->obscuration(), 1e-12);
+    }
+
+    public function testSolarWhenLocRejectsInvalidObserverAltitude(): void
+    {
+        $result = Eclipse::solarWhenLoc(
+            2460400.0,
+            new Observer(-104.9903, 39.7392, 30000.0)
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['tret']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
+        self::assertSame(
+            'location for eclipses must be between -500 and 25000 m above sea',
+            $result['error']
+        );
+    }
+
     public function testSolarWhenGlobFindsNextGlobalMinimum(): void
     {
         $result = Eclipse::solarWhenGlob(2460400.0);
