@@ -482,7 +482,13 @@ final class Eclipse
         $seed = self::solarWhereSeed($tjdUt, $flags);
 
         if ($seed['rc'] === SwissDate::ERR || $seed['rc'] === 0) {
-            return $seed;
+            return [
+                'rc' => $seed['rc'],
+                'geopos' => $seed['geopos'],
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => $seed['dcore'],
+                'error' => $seed['error'],
+            ];
         }
 
         $maximum = self::solarWhereMaximum(

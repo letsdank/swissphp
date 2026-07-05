@@ -302,6 +302,17 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(6780.885492356764, $result['dcore'][1], 1e-9);
     }
 
+    public function testSolarWhereReturnsNoEclipseShape(): void
+    {
+        $result = Eclipse::solarWhere(2451545.0);
+
+        self::assertSame(0, $result['rc']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['geopos']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
+        self::assertSame('no solar eclipse at tjd = 2451545.000000', $result['error']);
+    }
+
     public function testSolarWhereResultWrapsArrayResult(): void
     {
         $result = Eclipse::solarWhereResult(2460409.222222222);
