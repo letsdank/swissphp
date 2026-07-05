@@ -197,6 +197,22 @@ final class CalculatorTest extends TestCase
         self::assertSame('central partial eclipses do not exist', $result['error']);
     }
 
+    public function testCalculatorSolEclipseWhenGlobDelegatesTypeFilters(): void
+    {
+        self::assertSame(
+            Eclipse::solarWhenGlob(
+                2460000.0,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_ANNULAR
+            ),
+            Calculator::solEclipseWhenGlob(
+                2460000.0,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_ANNULAR
+            )
+        );
+    }
+
     public function testCalculatorSolEclipseWhereDelegatesToEclipse(): void
     {
         self::assertSame(
