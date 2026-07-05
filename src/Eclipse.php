@@ -532,6 +532,11 @@ final class Eclipse
                 $tret[1] = self::solarWhenLocPartialContact($maximum, $observer, $flags, -1);
                 $tret[4] = self::solarWhenLocPartialContact($maximum, $observer, $flags, 1);
 
+                if (($how['rc'] & (Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_ANNULAR)) !== 0) {
+                    $tret[2] = self::solarWhenLocTotalContact($maximum, $observer, $flags, -1);
+                    $tret[3] = self::solarWhenLocTotalContact($maximum, $observer, $flags, 1);
+                }
+
                 return [
                     'rc' => $how['rc'],
                     'tret' => $tret,
@@ -606,6 +611,64 @@ final class Eclipse
         return $how['attr'][2] * 1000000.0
             + $how['attr'][0] * 1000.0
             - $how['attr'][7];
+    }
+
+    private static function solarWhenLocTotalContact(
+        float    $maximum,
+        Observer $observer,
+        int      $flags,
+        int      $direction
+    ): float
+    {
+        $step = 0.005;
+        $inside = $maximum;
+        $outside = $maximum + $direction * $step;
+
+        for ($attempt = 0; $attempt < 60 && self::solarWhenLocTotalPhase($outside, $observer, $flags); $attempt++) {
+            $inside = $outside;
+            $step *= 1.5;
+            $outside = $maximum + $direction * $step;
+        }
+
+        if (self::solarWhenLocTotalPhase($outside, $observer, $flags)) {
+            return 0.0;
+        }
+
+        if ($direction < 0) {
+            $left = $outside;
+            $right = $inside;
+        } else {
+            $left = $inside;
+            $right = $outside;
+        }
+
+        for ($i = 0; $i < 60; $i++) {
+            $middle = ($left + $right) / 2.0;
+
+            if (self::solarWhenLocTotalPhase($middle, $observer, $flags)) {
+                if ($direction < 0) {
+                    $right = $middle;
+                } else {
+                    $left = $middle;
+                }
+            } else {
+                if ($direction < 0) {
+                    $left = $middle;
+                } else {
+                    $right = $middle;
+                }
+            }
+        }
+
+        return $direction < 0 ? $right : $left;
+    }
+
+    private static function solarWhenLocTotalPhase(float $tjdUt, Observer $observer, int $flags): bool
+    {
+        $result = self::solarHow($tjdUt, $observer, $flags);
+
+        return $result['rc'] !== SwissDate::ERR
+            && ($result['rc'] & (Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_ANNULAR)) !== 0;
     }
 
     private static function solarWhenLocPartialContact(
