@@ -498,12 +498,58 @@ final class Eclipse
             ];
         }
 
+        $cursor = $tjdUt;
+
+        for ($attempt = 0; $attempt < 40; $attempt++) {
+            $global = self::solarWhenGlob($cursor, $flags, Catalog::SE_ECL_ALLTYPES_SOLAR, $backward);
+
+            if ($global['rc'] === SwissDate::ERR || $global['rc'] === 0) {
+                return [
+                    'rc' => $global['rc'],
+                    'tret' => array_fill(0, 10, 0.0),
+                    'attr' => array_fill(0, 20, 0.0),
+                    'dcore' => array_fill(0, 10, 0.0),
+                    'error' => $global['error'],
+                ];
+            }
+
+            $maximum = self::solarWhenLocMaximum($global['tret'][0], $observer, $flags);
+            $how = self::solarHow($maximum, $observer, $flags);
+
+            if ($how['rc'] === SwissDate::ERR) {
+                return [
+                    'rc' => SwissDate::ERR,
+                    'tret' => array_fill(0, 10, 0.0),
+                    'attr' => $how['attr'],
+                    'dcore' => $how['dcore'],
+                    'error' => $how['error'],
+                ];
+            }
+
+            if ($how['rc'] !== 0) {
+                $tret = array_fill(0, 10, 0.0);
+                $tret[0] = $maximum;
+                $tret[1] = self::solarWhenLocPartialContact($maximum, $observer, $flags, -1);
+                $tret[4] = self::solarWhenLocPartialContact($maximum, $observer, $flags, 1);
+
+                return [
+                    'rc' => $how['rc'],
+                    'tret' => $tret,
+                    'attr' => $how['attr'],
+                    'dcore' => $how['dcore'],
+                    'error' => '',
+                ];
+            }
+
+            $cursor = $global['tret'][0] + ($backward ? -0.0001 : 0.0001);
+        }
+
         return [
-            'rc' => SwissDate::ERR,
+            'rc' => 0,
             'tret' => array_fill(0, 10, 0.0),
             'attr' => array_fill(0, 20, 0.0),
             'dcore' => array_fill(0, 10, 0.0),
-            'error' => 'local solar eclipse search is not implemented yet',
+            'error' => 'no local solar eclipse found within search window',
         ];
     }
 
@@ -517,6 +563,106 @@ final class Eclipse
         return SolarEclipseWhenResult::fromArray(
             self::solarWhenLoc($tjdUt, $observer, $flags, $backward)
         );
+    }
+
+    private static function solarWhenLocMaximum(
+        float    $estimate,
+        Observer $observer,
+        int      $flags
+    ): float
+    {
+        $bestTime = $estimate;
+        $best = self::solarHow($bestTime, $observer, $flags);
+
+        foreach ([0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 0.0005, 0.0002, 0.0001] as $step) {
+            do {
+                $improved = false;
+
+                foreach ([-1, 1] as $direction) {
+                    $candidateTime = $bestTime + $direction * $step;
+                    $candidate = self::solarHow($candidateTime, $observer, $flags);
+
+                    if (self::solarWhenLocScore($candidate) > self::solarWhenLocScore($best)) {
+                        $bestTime = $candidateTime;
+                        $best = $candidate;
+                        $improved = true;
+                    }
+                }
+            } while ($improved);
+        }
+
+        return $bestTime;
+    }
+
+    /**
+     * @param array{rc:int, attr:array<int, float>, dcore:array<int, float>, error:string} $how
+     */
+    private static function solarWhenLocScore(array $how): float
+    {
+        if ($how['rc'] === SwissDate::ERR) {
+            return -INF;
+        }
+
+        return $how['attr'][2] * 1000000.0
+            + $how['attr'][0] * 1000.0
+            - $how['attr'][7];
+    }
+
+    private static function solarWhenLocPartialContact(
+        float    $maximum,
+        Observer $observer,
+        int      $flags,
+        int      $direction
+    ): float
+    {
+        $step = 0.02;
+        $inside = $maximum;
+        $outside = $maximum + $direction * $step;
+
+        for ($attempt = 0; $attempt < 60 && self::solarWhenLocVisible($outside, $observer, $flags); $attempt++) {
+            $inside = $outside;
+            $step *= 1.5;
+            $outside = $maximum + $direction * $step;
+        }
+
+        if (self::solarWhenLocVisible($outside, $observer, $flags)) {
+            return 0.0;
+        }
+
+        if ($direction < 0) {
+            $left = $outside;
+            $right = $inside;
+        } else {
+            $left = $inside;
+            $right = $outside;
+        }
+
+        for ($i = 0; $i < 60; $i++) {
+            $middle = ($left + $right) / 2.0;
+
+            if (self::solarWhenLocVisible($middle, $observer, $flags)) {
+                if ($direction < 0) {
+                    $right = $middle;
+                } else {
+                    $left = $middle;
+                }
+            } else {
+                if ($direction < 0) {
+                    $left = $middle;
+                } else {
+                    $right = $middle;
+                }
+            }
+        }
+
+        return $direction < 0 ? $right : $left;
+    }
+
+    private static function solarWhenLocVisible(float $tjdUt, Observer $observer, int $flags): bool
+    {
+        $result = self::solarHow($tjdUt, $observer, $flags);
+
+        return $result['rc'] !== SwissDate::ERR && $result['rc'] !== 0;
     }
 
     /**

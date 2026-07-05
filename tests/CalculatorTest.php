@@ -180,13 +180,14 @@ final class CalculatorTest extends TestCase
     public function testCalculatorSolEclipseWhenLocResultDelegatesToEclipse(): void
     {
         $result = Calculator::solEclipseWhenLocResult(
-            2460400.0,
+            2460000.0,
             new Observer(-104.9903, 39.7392, 1609.0)
         );
 
         self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
-        self::assertFalse($result->isEclipse());
-        self::assertSame('local solar eclipse search is not implemented yet', $result->result->error);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isPartial());
+        self::assertEqualsWithDelta(2460232.1618292737, $result->maximumTime(), 1e-9);
     }
 
     public function testCalculatorSolEclipseWhenGlobDelegatesToEclipse(): void
