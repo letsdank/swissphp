@@ -298,10 +298,32 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2460232.1618292737, $result['tret'][0], 1e-9);
         self::assertEqualsWithDelta(2460232.1039323257, $result['tret'][1], 1e-9);
         self::assertEqualsWithDelta(2460232.2280774666, $result['tret'][4], 1e-9);
+        self::assertSame(0.0, $result['tret'][2]);
+        self::assertSame(0.0, $result['tret'][3]);
         self::assertEqualsWithDelta(0.8934100373498459, $result['attr'][0], 1e-12);
         self::assertEqualsWithDelta(0.9469870262444778, $result['attr'][1], 1e-12);
         self::assertEqualsWithDelta(0.8437355111304065, $result['attr'][2], 1e-12);
         self::assertEqualsWithDelta(0.04280175074270825, $result['attr'][7], 1e-12);
+    }
+
+    public function testSolarWhenLocFindsLocalTotalContacts(): void
+    {
+        $result = Eclipse::solarWhenLoc(
+            2460400.0,
+            new Observer(-82.0, 20.0, 0.0)
+        );
+
+        self::assertSame(Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460409.222175672, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2460409.1577716433, $result['tret'][1], 1e-9);
+        self::assertEqualsWithDelta(2460409.2203435036, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2460409.224017496, $result['tret'][3], 1e-9);
+        self::assertEqualsWithDelta(2460409.2877102345, $result['tret'][4], 1e-9);
+        self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(1.057077305546262, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(0.0001060021098974371, $result['attr'][7], 1e-12);
     }
 
     public function testSolarWhenLocResultWrapsArrayResult(): void
@@ -316,6 +338,8 @@ final class EclipseTest extends TestCase
         self::assertTrue($result->isPartial());
         self::assertEqualsWithDelta(2460232.1618292737, $result->maximumTime(), 1e-9);
         self::assertEqualsWithDelta(2460232.1039323257, $result->firstContactTime(), 1e-9);
+        self::assertSame(0.0, $result->secondContactTime());
+        self::assertSame(0.0, $result->thirdContactTime());
         self::assertEqualsWithDelta(2460232.2280774666, $result->fourthContactTime(), 1e-9);
         self::assertEqualsWithDelta(0.8934100373498459, $result->magnitude(), 1e-12);
         self::assertEqualsWithDelta(0.8437355111304065, $result->obscuration(), 1e-12);
