@@ -286,6 +286,49 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2451564.7974327924, $result['tret'][9], 1e-9);
     }
 
+    public function testSolarWhenLocReturnsExplicitNotImplementedError(): void
+    {
+        $result = Eclipse::solarWhenLoc(
+            2460400.0,
+            new Observer(-104.9903, 39.7392, 1609.0)
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['tret']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
+        self::assertSame('local solar eclipse search is not implemented yet', $result['error']);
+    }
+
+    public function testSolarWhenLocResultWrapsArrayResult(): void
+    {
+        $result = Eclipse::solarWhenLocResult(
+            2460400.0,
+            new Observer(-104.9903, 39.7392, 1609.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
+        self::assertFalse($result->isEclipse());
+        self::assertSame('local solar eclipse search is not implemented yet', $result->result->error);
+    }
+
+    public function testSolarWhenLocRejectsInvalidObserverAltitude(): void
+    {
+        $result = Eclipse::solarWhenLoc(
+            2460400.0,
+            new Observer(-104.9903, 39.7392, 30000.0)
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['tret']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
+        self::assertSame(
+            'location for eclipses must be between -500 and 25000 m above sea',
+            $result['error']
+        );
+    }
+
     public function testSolarWhenGlobFindsNextGlobalMinimum(): void
     {
         $result = Eclipse::solarWhenGlob(2460400.0);

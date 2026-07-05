@@ -470,6 +470,56 @@ final class Eclipse
     }
 
     /**
+     * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_when_loc().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function solarWhenLoc(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+    ): array
+    {
+        if (
+            $observer->altitude < Observer::MIN_GEOGRAPHIC_ALTITUDE
+            || $observer->altitude > Observer::MAX_GEOGRAPHIC_LATITUDE
+        ) {
+            return [
+                'rc' => SwissDate::ERR,
+                'tret' => array_fill(0, 10, 0.0),
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => sprintf(
+                    'location for eclipses must be between %.0f and %.0f m above sea',
+                    Observer::MIN_GEOGRAPHIC_ALTITUDE,
+                    Observer::MAX_GEOGRAPHIC_LATITUDE
+                ),
+            ];
+        }
+
+        return [
+            'rc' => SwissDate::ERR,
+            'tret' => array_fill(0, 10, 0.0),
+            'attr' => array_fill(0, 20, 0.0),
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => 'local solar eclipse search is not implemented yet',
+        ];
+    }
+
+    public static function solarWhenLocResult(
+        float    $tjdUt,
+        Observer $observer,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+    ): SolarEclipseWhenResult
+    {
+        return SolarEclipseWhenResult::fromArray(
+            self::solarWhenLoc($tjdUt, $observer, $flags, $backward)
+        );
+    }
+
+    /**
      * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_when_glob().
      *
      * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
