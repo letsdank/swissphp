@@ -481,6 +481,26 @@ final class Eclipse
         bool  $backward = false,
     ): array
     {
+        if ($eclipseTypes === (Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL)) {
+            return [
+                'rc' => SwissDate::ERR,
+                'tret' => array_fill(0, 10, 0.0),
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => 'central partial eclipses do not exist',
+            ];
+        }
+
+        if ($eclipseTypes === (Catalog::SE_ECL_ANNULAR_TOTAL | Catalog::SE_ECL_NONCENTRAL)) {
+            return [
+                'rc' => SwissDate::ERR,
+                'tret' => array_fill(0, 10, 0.0),
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => 'non-central hybrid (annular-total) eclipses do not exist',
+            ];
+        }
+
         return [
             'rc' => SwissDate::ERR,
             'tret' => array_fill(0, 10, 0.0),

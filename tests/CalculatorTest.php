@@ -184,6 +184,18 @@ final class CalculatorTest extends TestCase
         self::assertSame('global solar eclipse search is not implemented yet', $result->result->error);
     }
 
+    public function testCalculatorSolEclipseWhenGlobPreservesTypeFilterErrors(): void
+    {
+        $result = Calculator::solEclipseWhenGlob(
+            2460409.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame('central partial eclipses do not exist', $result['error']);
+    }
+
     public function testCalculatorSolEclipseWhereDelegatesToEclipse(): void
     {
         self::assertSame(

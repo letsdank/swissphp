@@ -297,6 +297,33 @@ final class EclipseTest extends TestCase
         self::assertSame('global solar eclipse search is not implemented yet', $result['error']);
     }
 
+    public function testSolarWhenGlobRejectsImpossibleCentralPartialType(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460409.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['tret']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
+        self::assertSame('central partial eclipses do not exist', $result['error']);
+    }
+
+    public function testSolarWhenGlobRejectsImpossibleNoncentralHybridType(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460409.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_ANNULAR_TOTAL | Catalog::SE_ECL_NONCENTRAL
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame('non-central hybrid (annular-total) eclipses do not exist', $result['error']);
+    }
+
     public function testSolarWhenGlobResultWrapsArrayResult(): void
     {
         $result = Eclipse::solarWhenGlobResult(2460409.0);
