@@ -174,6 +174,15 @@ final class CalculatorTest extends TestCase
         );
     }
 
+    public function testCalculatorSolEclipseWherePreservesNoEclipseShape(): void
+    {
+        $result = Calculator::solEclipseWhere(2451545.0);
+
+        self::assertSame(0, $result['rc']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame('no solar eclipse at tjd = 2451545.000000', $result['error']);
+    }
+
     public function testCalculatorSolEclipseWhereResultDelegatesToEclipse(): void
     {
         $result = Calculator::solEclipseWhereResult(2460409.222222222);
