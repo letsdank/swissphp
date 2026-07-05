@@ -93,6 +93,26 @@ final readonly class SolarEclipseWhenResult
         return $this->result->partialEndTime();
     }
 
+    public function totalityBeginTime(): float
+    {
+        return $this->result->totalityBeginTime();
+    }
+
+    public function totalityEndTime(): float
+    {
+        return $this->result->totalityEndTime();
+    }
+
+    public function centralLineBeginTime(): float
+    {
+        return $this->result->penumbralBeginTime();
+    }
+
+    public function centralLineEndTime(): float
+    {
+        return $this->result->penumbralEndTime();
+    }
+
     public function sunriseTime(): float
     {
         return $this->result->sunriseTime();
