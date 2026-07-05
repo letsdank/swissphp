@@ -25,6 +25,7 @@ use SwissEph\Phenomena;
 use SwissEph\Precession;
 use SwissEph\SiderealTime;
 use SwissEph\SolarEclipseResult;
+use SwissEph\SolarEclipseWhenResult;
 use SwissEph\SolarPosition;
 use SwissEph\SwissDate;
 use SwissEph\TrueNode;
@@ -164,6 +165,23 @@ final class CalculatorTest extends TestCase
             $result->maximumTime(),
             1e-12
         );
+    }
+
+    public function testCalculatorSolEclipseWhenGlobDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::solarWhenGlob(2460409.0),
+            Calculator::solEclipseWhenGlob(2460409.0)
+        );
+    }
+
+    public function testCalculatorSolEclipseWhenGlobResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::solEclipseWhenGlobResult(2460409.0);
+
+        self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
+        self::assertFalse($result->isEclipse());
+        self::assertSame('global solar eclipse search is not implemented yet', $result->result->error);
     }
 
     public function testCalculatorSolEclipseWhereDelegatesToEclipse(): void

@@ -470,6 +470,39 @@ final class Eclipse
     }
 
     /**
+     * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_when_glob().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function solarWhenGlob(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_SOLAR,
+        bool  $backward = false,
+    ): array
+    {
+        return [
+            'rc' => SwissDate::ERR,
+            'tret' => array_fill(0, 10, 0.0),
+            'attr' => array_fill(0, 20, 0.0),
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => 'global solar eclipse search is not implemented yet',
+        ];
+    }
+
+    public static function solarWhenGlobResult(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_SOLAR,
+        bool  $backward = false,
+    ): SolarEclipseWhenResult
+    {
+        return SolarEclipseWhenResult::fromArray(
+            self::solarWhenGlob($tjdUt, $flags, $eclipseTypes, $backward)
+        );
+    }
+
+    /**
      * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_where().
      *
      * @return array{rc:int, geopos:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
