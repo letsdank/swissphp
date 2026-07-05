@@ -286,15 +286,34 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2451564.7974327924, $result['tret'][9], 1e-9);
     }
 
-    public function testSolarWhenGlobReturnsExplicitNotImplementedError(): void
+    public function testSolarWhenGlobFindsNextGlobalMinimum(): void
     {
-        $result = Eclipse::solarWhenGlob(2460409.0);
+        $result = Eclipse::solarWhenGlob(2460400.0);
 
-        self::assertSame(SwissDate::ERR, $result['rc']);
-        self::assertSame(array_fill(0, 10, 0.0), $result['tret']);
-        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
-        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
-        self::assertSame('global solar eclipse search is not implemented yet', $result['error']);
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460409.2240756718, $result['tret'][0], 1e-9);
+        self::assertSame(0.0, $result['tret'][1]);
+        self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(1.057075496809707, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(-188.0898259351609, $result['attr'][3], 1e-9);
+        self::assertEqualsWithDelta(0.0004788657999566075, $result['attr'][7], 1e-12);
+        self::assertEqualsWithDelta(-188.0898259351609, $result['dcore'][0], 1e-9);
+    }
+
+    public function testSolarWhenGlobFindsPreviousGlobalMaximum(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460410.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_ALLTYPES_SOLAR,
+            true
+        );
+
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460409.2240756718, $result['tret'][0], 1e-9);
     }
 
     public function testSolarWhenGlobRejectsImpossibleCentralPartialType(): void
@@ -326,11 +345,14 @@ final class EclipseTest extends TestCase
 
     public function testSolarWhenGlobResultWrapsArrayResult(): void
     {
-        $result = Eclipse::solarWhenGlobResult(2460409.0);
+        $result = Eclipse::solarWhenGlobResult(2460400.0);
 
         self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
-        self::assertFalse($result->isEclipse());
-        self::assertSame('global solar eclipse search is not implemented yet', $result->result->error);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2460409.2240756718, $result->maximumTime(), 1e-9);
+        self::assertEqualsWithDelta(1.0, $result->magnitude(), 1e-12);
+        self::assertEqualsWithDelta(1.0, $result->obscuration(), 1e-12);
     }
 
     public function testSolarWhereReturnsBasicGeometry(): void

@@ -170,18 +170,19 @@ final class CalculatorTest extends TestCase
     public function testCalculatorSolEclipseWhenGlobDelegatesToEclipse(): void
     {
         self::assertSame(
-            Eclipse::solarWhenGlob(2460409.0),
-            Calculator::solEclipseWhenGlob(2460409.0)
+            Eclipse::solarWhenGlob(2460400.0),
+            Calculator::solEclipseWhenGlob(2460400.0)
         );
     }
 
     public function testCalculatorSolEclipseWhenGlobResultDelegatesToEclipse(): void
     {
-        $result = Calculator::solEclipseWhenGlobResult(2460409.0);
+        $result = Calculator::solEclipseWhenGlobResult(2460400.0);
 
         self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
-        self::assertFalse($result->isEclipse());
-        self::assertSame('global solar eclipse search is not implemented yet', $result->result->error);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2460409.2240756718, $result->maximumTime(), 1e-9);
     }
 
     public function testCalculatorSolEclipseWhenGlobPreservesTypeFilterErrors(): void
