@@ -252,6 +252,31 @@ final class Calculator
     }
 
     /**
+     * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_when_glob().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function solEclipseWhenGlob(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_SOLAR,
+        bool  $backward = false,
+    ): array
+    {
+        return Eclipse::solarWhenGlob($tjdUt, $flags, $eclipseTypes, $backward);
+    }
+
+    public static function solEclipseWhenGlobResult(
+        float $tjdUt,
+        int   $flags = Catalog::SEFLG_DEFAULTEPH,
+        int   $eclipseTypes = Catalog::SE_ECL_ALLTYPES_SOLAR,
+        bool  $backward = false,
+    ): SolarEclipseWhenResult
+    {
+        return Eclipse::solarWhenGlobResult($tjdUt, $flags, $eclipseTypes, $backward);
+    }
+
+    /**
      * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_where().
      *
      * @return array{rc:int, geopos:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
