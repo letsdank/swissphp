@@ -293,6 +293,8 @@ final class EclipseTest extends TestCase
         self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
         self::assertSame('', $result['error']);
         self::assertEqualsWithDelta(2460409.2240756718, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2460409.1162655386, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2460409.3317089113, $result['tret'][3], 1e-9);
         self::assertSame(0.0, $result['tret'][1]);
         self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
         self::assertEqualsWithDelta(1.057075496809707, $result['attr'][1], 1e-12);
@@ -327,6 +329,8 @@ final class EclipseTest extends TestCase
         self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
         self::assertSame('', $result['error']);
         self::assertEqualsWithDelta(2460054.6498784726, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2460054.5360783623, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2460054.7639449453, $result['tret'][3], 1e-9);
         self::assertEqualsWithDelta(1.0149337171324408, $result['attr'][1], 1e-12);
         self::assertEqualsWithDelta(-51.28509088820063, $result['dcore'][0], 1e-9);
     }
@@ -342,6 +346,8 @@ final class EclipseTest extends TestCase
         self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_ANNULAR, $result['rc']);
         self::assertSame('', $result['error']);
         self::assertEqualsWithDelta(2460232.210229274, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2460232.0923260623, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2460232.328423156, $result['tret'][3], 1e-9);
         self::assertEqualsWithDelta(0.9519455289045887, $result['attr'][1], 1e-12);
         self::assertEqualsWithDelta(176.4252588062989, $result['dcore'][0], 1e-9);
     }
@@ -357,6 +363,8 @@ final class EclipseTest extends TestCase
         self::assertSame(Catalog::SE_ECL_NONCENTRAL | Catalog::SE_ECL_PARTIAL, $result['rc']);
         self::assertSame('', $result['error']);
         self::assertEqualsWithDelta(2451580.030268962, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2451579.9428501227, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2451580.117957648, $result['tret'][3], 1e-9);
         self::assertEqualsWithDelta(0.7425117182492289, $result['attr'][0], 1e-12);
         self::assertEqualsWithDelta(0.6570883694204279, $result['attr'][2], 1e-12);
     }
@@ -412,6 +420,8 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2460409.2240756718, $result->maximumTime(), 1e-9);
         self::assertEqualsWithDelta(1.0, $result->magnitude(), 1e-12);
         self::assertEqualsWithDelta(1.0, $result->obscuration(), 1e-12);
+        self::assertEqualsWithDelta(2460409.1162655386, $result->result->partialBeginTime(), 1e-9);
+        self::assertEqualsWithDelta(2460409.3317089113, $result->result->partialEndTime(), 1e-9);
     }
 
     public function testSolarWhereReturnsBasicGeometry(): void

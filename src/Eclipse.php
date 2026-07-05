@@ -541,6 +541,8 @@ final class Eclipse
 
             $tret = array_fill(0, 10, 0.0);
             $tret[0] = $maximumUt;
+            $tret[2] = self::solarWhenGlobPartialContact($maximumUt, $flags, -1);
+            $tret[3] = self::solarWhenGlobPartialContact($maximumUt, $flags, 1);
 
             return [
                 'rc' => $where['rc'],
@@ -895,6 +897,156 @@ final class Eclipse
         $tjdUt = $tjdEt - DeltaT::deltatEx($tjdUt, $flags);
 
         return $tjdEt - DeltaT::deltatEx($tjdUt, $flags);
+    }
+
+    private static function solarWhenGlobPartialContact(float $maximumUt, int $flags, int $direction): float
+    {
+        $step = 2.0 / 24.0;
+        $inside = $maximumUt;
+        $outside = $maximumUt + $direction * $step;
+
+        for ($attempt = 0; $attempt < 40 && self::solarWhenGlobPartialContactMetric($outside, $flags) > 0.0; $attempt++) {
+            $inside = $outside;
+            $step *= 1.5;
+            $outside = $maximumUt + $direction * $step;
+        }
+
+        if (self::solarWhenGlobPartialContactMetric($outside, $flags) > 0.0) {
+            return 0.0;
+        }
+
+        if ($direction < 0) {
+            $left = $outside;
+            $right = $inside;
+        } else {
+            $left = $inside;
+            $right = $outside;
+        }
+
+        for ($i = 0; $i < 60; $i++) {
+            $middle = ($left + $right) / 2.0;
+
+            if (self::solarWhenGlobPartialContactMetric($middle, $flags) > 0.0) {
+                if ($direction < 0) {
+                    $right = $middle;
+                } else {
+                    $left = $middle;
+                }
+            } else {
+                if ($direction < 0) {
+                    $left = $middle;
+                } else {
+                    $right = $middle;
+                }
+            }
+        }
+
+        return $direction < 0 ? $right : $left;
+    }
+
+    private static function solarWhenGlobPartialContactMetric(float $tjdUt, int $flags): float
+    {
+        $shadow = self::solarWhenGlobShadowGeometry($tjdUt, $flags);
+
+        if ($shadow === null) {
+            return -INF;
+        }
+
+        return $shadow['penumbraDiameterKm'] / 2.0
+            + 6378.140 / $shadow['cosf1']
+            - $shadow['axisDistanceKm'];
+    }
+
+    /**
+     * @return array{axisDistanceKm:float, umbraDiameterKm:float, penumbraDiameterKm:float, cosf1:float, cosf2:float}|null
+     */
+    private static function solarWhenGlobShadowGeometry(float $tjdUt, int $flags): ?array
+    {
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags)
+            | Catalog::SEFLG_SPEED
+            | Catalog::SEFLG_EQUATORIAL
+            | Catalog::SEFLG_RADIANS;
+
+        $moon = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $calcFlags);
+        $sun = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $calcFlags);
+
+        if ($moon['rc'] === SwissDate::ERR || $sun['rc'] === SwissDate::ERR) {
+            return null;
+        }
+
+        $earthOblateness = 1.0 - self::EARTH_OBLATENESS;
+
+        for ($iteration = 0; $iteration < 2; $iteration++) {
+            $rm = Coordinates::polcart([
+                $moon['xx'][0],
+                $moon['xx'][1],
+                $moon['xx'][2],
+            ]);
+            $rm[2] /= $earthOblateness;
+            $dm = self::vectorLength($rm);
+
+            $rs = Coordinates::polcart([
+                $sun['xx'][0],
+                $sun['xx'][1],
+                $sun['xx'][2],
+            ]);
+            $rs[2] /= $earthOblateness;
+
+            $e = [
+                $rm[0] - $rs[0],
+                $rm[1] - $rs[1],
+                $rm[2] - $rs[2],
+            ];
+            $dsm = self::vectorLength($e);
+
+            for ($i = 0; $i < 3; $i++) {
+                $e[$i] /= $dsm;
+            }
+
+            $sinf1 = (self::RSUN - self::RMOON) / $dsm;
+            $cosf1 = sqrt(1.0 - $sinf1 * $sinf1);
+            $sinf2 = (self::RSUN + self::RMOON) / $dsm;
+            $cosf2 = sqrt(1.0 - $sinf2 * $sinf2);
+
+            $s0 = -self::dot($rm, $e);
+            $r0 = sqrt($dm * $dm - $s0 * $s0);
+
+            $d0 = ($s0 / $dsm * (self::DSUN - self::DMOON) - self::DMOON) / $cosf1;
+            $D0 = ($s0 / $dsm * (self::DSUN + self::DMOON) + self::DMOON) / $cosf2;
+
+            $distance = $s0 * $s0 + self::REARTH * self::REARTH - $dm * $dm;
+            $distance = $distance > 0.0 ? sqrt($distance) : 0.0;
+            $shadowDistance = $s0 - $distance;
+
+            $xs = [
+                $rm[0] + $shadowDistance * $e[0],
+                $rm[1] + $shadowDistance * $e[1],
+                $rm[2] + $shadowDistance * $e[2],
+            ];
+
+            $xst = $xs;
+            $xst[2] *= $earthOblateness;
+            $polar = Coordinates::cartpol($xst);
+
+            if ($iteration === 0) {
+                $cosLatitude = cos($polar[1]);
+                $sinLatitude = sin($polar[1]);
+                $flattening = 1.0 - self::EARTH_OBLATENESS;
+                $cc = 1.0 / sqrt($cosLatitude * $cosLatitude + $flattening * $flattening * $sinLatitude * $sinLatitude);
+                $earthOblateness = $flattening * $flattening * $cc;
+                continue;
+            }
+
+            return [
+                'axisDistanceKm' => $r0 * self::AUNIT_METERS / 1000.0,
+                'umbraDiameterKm' => $d0 * self::AUNIT_METERS / 1000.0,
+                'penumbraDiameterKm' => $D0 * self::AUNIT_METERS / 1000.0,
+                'cosf1' => $cosf1,
+                'cosf2' => $cosf2,
+            ];
+        }
+
+        return null;
     }
 
     /**
