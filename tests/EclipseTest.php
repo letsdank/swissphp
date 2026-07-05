@@ -297,6 +297,8 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2460409.3317089113, $result['tret'][3], 1e-9);
         self::assertEqualsWithDelta(2460409.155617474, $result['tret'][4], 1e-9);
         self::assertEqualsWithDelta(2460409.292326816, $result['tret'][5], 1e-9);
+        self::assertEqualsWithDelta(2460409.1564231585, $result['tret'][6], 1e-9);
+        self::assertEqualsWithDelta(2460409.2915363014, $result['tret'][7], 1e-9);
         self::assertSame(0.0, $result['tret'][1]);
         self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
         self::assertEqualsWithDelta(1.057075496809707, $result['attr'][1], 1e-12);
@@ -352,6 +354,8 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2460232.328423156, $result['tret'][3], 1e-9);
         self::assertEqualsWithDelta(2460232.140802205, $result['tret'][4], 1e-9);
         self::assertEqualsWithDelta(2460232.2799321325, $result['tret'][5], 1e-9);
+        self::assertEqualsWithDelta(2460232.1424956387, $result['tret'][6], 1e-9);
+        self::assertEqualsWithDelta(2460232.2782647717, $result['tret'][7], 1e-9);
         self::assertEqualsWithDelta(0.9519455289045887, $result['attr'][1], 1e-12);
         self::assertEqualsWithDelta(176.4252588062989, $result['dcore'][0], 1e-9);
     }
@@ -371,6 +375,8 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2451580.117957648, $result['tret'][3], 1e-9);
         self::assertSame(0.0, $result['tret'][4]);
         self::assertSame(0.0, $result['tret'][5]);
+        self::assertSame(0.0, $result['tret'][6]);
+        self::assertSame(0.0, $result['tret'][7]);
         self::assertEqualsWithDelta(0.7425117182492289, $result['attr'][0], 1e-12);
         self::assertEqualsWithDelta(0.6570883694204279, $result['attr'][2], 1e-12);
     }

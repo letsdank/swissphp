@@ -547,6 +547,11 @@ final class Eclipse
             if (($where['rc'] & Catalog::SE_ECL_PARTIAL) === 0) {
                 $tret[4] = self::solarWhenGlobTotalContact($maximumUt, $flags, -1);
                 $tret[5] = self::solarWhenGlobTotalContact($maximumUt, $flags, 1);
+
+                if (($where['rc'] & Catalog::SE_ECL_CENTRAL) !== 0) {
+                    $tret[6] = self::solarWhenGlobCentralContact($maximumUt, $flags, -1);
+                    $tret[7] = self::solarWhenGlobCentralContact($maximumUt, $flags, 1);
+                }
             }
 
             return [
@@ -902,6 +907,62 @@ final class Eclipse
         $tjdUt = $tjdEt - DeltaT::deltatEx($tjdUt, $flags);
 
         return $tjdEt - DeltaT::deltatEx($tjdUt, $flags);
+    }
+
+    private static function solarWhenGlobCentralContact(float $maximumUt, int $flags, int $direction): float
+    {
+        $step = 10.0 / 24.0 / 60.0 / 3.0;
+        $inside = $maximumUt;
+        $outside = $maximumUt + $direction * $step;
+
+        for ($attempt = 0; $attempt < 60 && self::solarWhenGlobCentralContactMetric($outside, $flags) > 0.0; $attempt++) {
+            $inside = $outside;
+            $step *= 1.5;
+            $outside = $maximumUt + $direction * $step;
+        }
+
+        if (self::solarWhenGlobCentralContactMetric($outside, $flags) > 0.0) {
+            return 0.0;
+        }
+
+        if ($direction < 0) {
+            $left = $outside;
+            $right = $inside;
+        } else {
+            $left = $inside;
+            $right = $outside;
+        }
+
+        for ($i = 0; $i < 60; $i++) {
+            $middle = ($left + $right) / 2.0;
+
+            if (self::solarWhenGlobCentralContactMetric($middle, $flags) > 0.0) {
+                if ($direction < 0) {
+                    $right = $middle;
+                } else {
+                    $left = $middle;
+                }
+            } else {
+                if ($direction < 0) {
+                    $left = $middle;
+                } else {
+                    $right = $middle;
+                }
+            }
+        }
+
+        return $direction < 0 ? $right : $left;
+    }
+
+    private static function solarWhenGlobCentralContactMetric(float $tjdUt, int $flags): float
+    {
+        $shadow = self::solarWhenGlobShadowGeometry($tjdUt, $flags);
+
+        if ($shadow === null) {
+            return -INF;
+        }
+
+        return 6378.140 / $shadow['cosf2'] - $shadow['axisDistanceKm'];
     }
 
     private static function solarWhenGlobTotalContact(float $maximumUt, int $flags, int $direction): float
