@@ -434,6 +434,10 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(1.0, $result->obscuration(), 1e-12);
         self::assertEqualsWithDelta(2460409.1162655386, $result->partialBeginTime(), 1e-9);
         self::assertEqualsWithDelta(2460409.3317089113, $result->partialEndTime(), 1e-9);
+        self::assertEqualsWithDelta(2460409.155617474, $result->totalityBeginTime(), 1e-9);
+        self::assertEqualsWithDelta(2460409.292326816, $result->totalityEndTime(), 1e-9);
+        self::assertEqualsWithDelta(2460409.1564231585, $result->centralLineBeginTime(), 1e-9);
+        self::assertEqualsWithDelta(2460409.2915363014, $result->centralLineEndTime(), 1e-9);
     }
 
     public function testSolarWhereReturnsBasicGeometry(): void
