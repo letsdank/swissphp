@@ -170,18 +170,47 @@ final class CalculatorTest extends TestCase
     public function testCalculatorSolEclipseWhenGlobDelegatesToEclipse(): void
     {
         self::assertSame(
-            Eclipse::solarWhenGlob(2460409.0),
-            Calculator::solEclipseWhenGlob(2460409.0)
+            Eclipse::solarWhenGlob(2460400.0),
+            Calculator::solEclipseWhenGlob(2460400.0)
         );
     }
 
     public function testCalculatorSolEclipseWhenGlobResultDelegatesToEclipse(): void
     {
-        $result = Calculator::solEclipseWhenGlobResult(2460409.0);
+        $result = Calculator::solEclipseWhenGlobResult(2460400.0);
 
         self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
-        self::assertFalse($result->isEclipse());
-        self::assertSame('global solar eclipse search is not implemented yet', $result->result->error);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2460409.2240756718, $result->maximumTime(), 1e-9);
+    }
+
+    public function testCalculatorSolEclipseWhenGlobPreservesTypeFilterErrors(): void
+    {
+        $result = Calculator::solEclipseWhenGlob(
+            2460409.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame('central partial eclipses do not exist', $result['error']);
+    }
+
+    public function testCalculatorSolEclipseWhenGlobDelegatesTypeFilters(): void
+    {
+        self::assertSame(
+            Eclipse::solarWhenGlob(
+                2460000.0,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_ANNULAR
+            ),
+            Calculator::solEclipseWhenGlob(
+                2460000.0,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_ANNULAR
+            )
+        );
     }
 
     public function testCalculatorSolEclipseWhereDelegatesToEclipse(): void

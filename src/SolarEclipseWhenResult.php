@@ -83,6 +83,16 @@ final readonly class SolarEclipseWhenResult
         return $this->result->fourthContactTime();
     }
 
+    public function partialBeginTime(): float
+    {
+        return $this->result->partialBeginTime();
+    }
+
+    public function partialEndTime(): float
+    {
+        return $this->result->partialEndTime();
+    }
+
     public function sunriseTime(): float
     {
         return $this->result->sunriseTime();

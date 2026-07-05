@@ -43,6 +43,8 @@ final class SolarEclipseWhenResultTest extends TestCase
         self::assertSame(2460409.10, $result->firstContactTime());
         self::assertSame(2460409.18, $result->secondContactTime());
         self::assertSame(2460409.32, $result->thirdContactTime());
+        self::assertSame(2460409.18, $result->partialBeginTime());
+        self::assertSame(2460409.32, $result->partialEndTime());
         self::assertSame(2460409.40, $result->fourthContactTime());
         self::assertSame(2460409.12, $result->sunriseTime());
         self::assertSame(2460409.38, $result->sunsetTime());

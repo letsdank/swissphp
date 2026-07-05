@@ -286,24 +286,142 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2451564.7974327924, $result['tret'][9], 1e-9);
     }
 
-    public function testSolarWhenGlobReturnsExplicitNotImplementedError(): void
+    public function testSolarWhenGlobFindsNextGlobalMinimum(): void
     {
-        $result = Eclipse::solarWhenGlob(2460409.0);
+        $result = Eclipse::solarWhenGlob(2460400.0);
+
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460409.2240756718, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2460409.1162655386, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2460409.3317089113, $result['tret'][3], 1e-9);
+        self::assertSame(0.0, $result['tret'][1]);
+        self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(1.057075496809707, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(-188.0898259351609, $result['attr'][3], 1e-9);
+        self::assertEqualsWithDelta(0.0004788657999566075, $result['attr'][7], 1e-12);
+        self::assertEqualsWithDelta(-188.0898259351609, $result['dcore'][0], 1e-9);
+    }
+
+    public function testSolarWhenGlobFindsPreviousGlobalMaximum(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460410.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_ALLTYPES_SOLAR,
+            true
+        );
+
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460409.2240756718, $result['tret'][0], 1e-9);
+    }
+
+    public function testSolarWhenGlobFiltersTotalEclipses(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460000.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_TOTAL
+        );
+
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460054.6498784726, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2460054.5360783623, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2460054.7639449453, $result['tret'][3], 1e-9);
+        self::assertEqualsWithDelta(1.0149337171324408, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(-51.28509088820063, $result['dcore'][0], 1e-9);
+    }
+
+    public function testSolarWhenGlobFiltersAnnularEclipses(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460000.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_ANNULAR
+        );
+
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_ANNULAR, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460232.210229274, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2460232.0923260623, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2460232.328423156, $result['tret'][3], 1e-9);
+        self::assertEqualsWithDelta(0.9519455289045887, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(176.4252588062989, $result['dcore'][0], 1e-9);
+    }
+
+    public function testSolarWhenGlobFiltersPartialEclipses(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2451545.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL
+        );
+
+        self::assertSame(Catalog::SE_ECL_NONCENTRAL | Catalog::SE_ECL_PARTIAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2451580.030268962, $result['tret'][0], 1e-9);
+        self::assertEqualsWithDelta(2451579.9428501227, $result['tret'][2], 1e-9);
+        self::assertEqualsWithDelta(2451580.117957648, $result['tret'][3], 1e-9);
+        self::assertEqualsWithDelta(0.7425117182492289, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(0.6570883694204279, $result['attr'][2], 1e-12);
+    }
+
+    public function testSolarWhenGlobFiltersBackwardAnnularEclipses(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460400.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_ANNULAR,
+            true
+        );
+
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_ANNULAR, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460232.210229274, $result['tret'][0], 1e-9);
+    }
+
+    public function testSolarWhenGlobRejectsImpossibleCentralPartialType(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460409.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+        );
 
         self::assertSame(SwissDate::ERR, $result['rc']);
         self::assertSame(array_fill(0, 10, 0.0), $result['tret']);
         self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
         self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
-        self::assertSame('global solar eclipse search is not implemented yet', $result['error']);
+        self::assertSame('central partial eclipses do not exist', $result['error']);
+    }
+
+    public function testSolarWhenGlobRejectsImpossibleNoncentralHybridType(): void
+    {
+        $result = Eclipse::solarWhenGlob(
+            2460409.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_ANNULAR_TOTAL | Catalog::SE_ECL_NONCENTRAL
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame('non-central hybrid (annular-total) eclipses do not exist', $result['error']);
     }
 
     public function testSolarWhenGlobResultWrapsArrayResult(): void
     {
-        $result = Eclipse::solarWhenGlobResult(2460409.0);
+        $result = Eclipse::solarWhenGlobResult(2460400.0);
 
         self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
-        self::assertFalse($result->isEclipse());
-        self::assertSame('global solar eclipse search is not implemented yet', $result->result->error);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2460409.2240756718, $result->maximumTime(), 1e-9);
+        self::assertEqualsWithDelta(1.0, $result->magnitude(), 1e-12);
+        self::assertEqualsWithDelta(1.0, $result->obscuration(), 1e-12);
+        self::assertEqualsWithDelta(2460409.1162655386, $result->partialBeginTime(), 1e-9);
+        self::assertEqualsWithDelta(2460409.3317089113, $result->partialEndTime(), 1e-9);
     }
 
     public function testSolarWhereReturnsBasicGeometry(): void

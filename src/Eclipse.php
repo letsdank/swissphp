@@ -481,12 +481,84 @@ final class Eclipse
         bool  $backward = false,
     ): array
     {
+        if ($eclipseTypes === (Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL)) {
+            return [
+                'rc' => SwissDate::ERR,
+                'tret' => array_fill(0, 10, 0.0),
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => 'central partial eclipses do not exist',
+            ];
+        }
+
+        if ($eclipseTypes === (Catalog::SE_ECL_ANNULAR_TOTAL | Catalog::SE_ECL_NONCENTRAL)) {
+            return [
+                'rc' => SwissDate::ERR,
+                'tret' => array_fill(0, 10, 0.0),
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => 'non-central hybrid (annular-total) eclipses do not exist',
+            ];
+        }
+
+        $eclipseTypes = self::normalizeSolarEclipseTypes($eclipseTypes);
+        $direction = $backward ? -1 : 1;
+        $lunation = (int)(($tjdUt - 2451545.0) / 365.2425 * 12.3685);
+        $lunation -= $direction;
+
+        for ($attempt = 0; $attempt < 240; $attempt++, $lunation += $direction) {
+            $estimate = self::solarEclipseNewMoonEstimate($lunation);
+
+            if ($estimate === null) {
+                continue;
+            }
+
+            $maximumEt = self::solarWhenGlobMaximumEt($estimate, $flags);
+            $maximumUt = self::dynamicalToUniversalTime($maximumEt, $flags);
+
+            if (
+                ($backward && $maximumUt >= $tjdUt - 0.0001)
+                || (!$backward && $maximumUt <= $tjdUt + 0.0001)
+            ) {
+                continue;
+            }
+
+            $where = self::solarWhere($maximumUt, $flags);
+
+            if ($where['rc'] === SwissDate::ERR) {
+                return [
+                    'rc' => SwissDate::ERR,
+                    'tret' => array_fill(0, 10, 0.0),
+                    'attr' => $where['attr'],
+                    'dcore' => $where['dcore'],
+                    'error' => $where['error'],
+                ];
+            }
+
+            if ($where['rc'] === 0 || !self::solarEclipseTypeMatches($where['rc'], $eclipseTypes)) {
+                continue;
+            }
+
+            $tret = array_fill(0, 10, 0.0);
+            $tret[0] = $maximumUt;
+            $tret[2] = self::solarWhenGlobPartialContact($maximumUt, $flags, -1);
+            $tret[3] = self::solarWhenGlobPartialContact($maximumUt, $flags, 1);
+
+            return [
+                'rc' => $where['rc'],
+                'tret' => $tret,
+                'attr' => $where['attr'],
+                'dcore' => $where['dcore'],
+                'error' => '',
+            ];
+        }
+
         return [
-            'rc' => SwissDate::ERR,
+            'rc' => 0,
             'tret' => array_fill(0, 10, 0.0),
             'attr' => array_fill(0, 20, 0.0),
             'dcore' => array_fill(0, 10, 0.0),
-            'error' => 'global solar eclipse search is not implemented yet',
+            'error' => 'no global solar eclipse found within search window',
         ];
     }
 
@@ -677,6 +749,304 @@ final class Eclipse
     ): SolarEclipseResult
     {
         return SolarEclipseResult::fromArray(self::solarHow($tjdUt, $observer, $flags));
+    }
+
+    private static function normalizeSolarEclipseTypes(int $eclipseTypes): int
+    {
+        if ($eclipseTypes === 0) {
+            return Catalog::SE_ECL_ALLTYPES_SOLAR;
+        }
+
+        if (
+            $eclipseTypes === Catalog::SE_ECL_TOTAL
+            || $eclipseTypes === Catalog::SE_ECL_ANNULAR
+            || $eclipseTypes === Catalog::SE_ECL_ANNULAR_TOTAL
+        ) {
+            return $eclipseTypes | Catalog::SE_ECL_NONCENTRAL | Catalog::SE_ECL_CENTRAL;
+        }
+
+        if ($eclipseTypes === Catalog::SE_ECL_PARTIAL) {
+            return $eclipseTypes | Catalog::SE_ECL_NONCENTRAL;
+        }
+
+        return $eclipseTypes;
+    }
+
+    private static function solarEclipseTypeMatches(int $rc, int $eclipseTypes): bool
+    {
+        if (($rc & Catalog::SE_ECL_NONCENTRAL) !== 0 && ($eclipseTypes & Catalog::SE_ECL_NONCENTRAL) === 0) {
+            return false;
+        }
+
+        if (($rc & Catalog::SE_ECL_CENTRAL) !== 0 && ($eclipseTypes & Catalog::SE_ECL_CENTRAL) === 0) {
+            return false;
+        }
+
+        if (($rc & Catalog::SE_ECL_ANNULAR) !== 0 && ($eclipseTypes & Catalog::SE_ECL_ANNULAR) === 0) {
+            return false;
+        }
+
+        if (($rc & Catalog::SE_ECL_PARTIAL) !== 0 && ($eclipseTypes & Catalog::SE_ECL_PARTIAL) === 0) {
+            return false;
+        }
+
+        if (
+            ($rc & Catalog::SE_ECL_TOTAL) !== 0
+            && ($eclipseTypes & (Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_ANNULAR_TOTAL)) == 0
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static function solarEclipseNewMoonEstimate(int $lunation): ?float
+    {
+        $t = $lunation / 1236.85;
+        $t2 = $t * $t;
+        $t3 = $t2 * $t;
+        $t4 = $t3 * $t;
+
+        $argument = Angle::degnorm(
+            160.7108
+            + 390.67050274 * $lunation
+            - 0.0016341 * $t2
+            - 0.00000227 * $t3
+            + 0.000000011 * $t4
+        );
+
+        if ($argument > 180.0) {
+            $argument -= 180.0;
+        }
+
+        if ($argument > 21.0 && $argument < 159.0) {
+            return null;
+        }
+
+        $sunAnomaly = deg2rad(Angle::degnorm(
+            2.5534
+            + 29.10535669 * $lunation
+            - 0.0000218 * $t2
+            - 0.00000011 * $t3
+        ));
+        $moonAnomaly = deg2rad(Angle::degnorm(
+            201.5643
+            + 385.81693528 * $lunation
+            + 0.1017438 * $t2
+            + 0.00001239 * $t3
+            + 0.000000058 * $t4
+        ));
+        $eccentricity = 1.0 - 0.002516 * $t - 0.0000074 * $t2;
+
+        return 2451550.09765
+            + 29.530588853 * $lunation
+            + 0.0001337 * $t2
+            - 0.000000150 * $t3
+            + 0.00000000073 * $t4
+            - 0.4075 * sin($moonAnomaly)
+            + 0.1721 * $eccentricity * sin($sunAnomaly);
+    }
+
+    private static function solarWhenGlobMaximumEt(float $tjdEt, int $flags): float
+    {
+        $step = ($tjdEt < 2000000.0 || $tjdEt > 2500000.0) ? 5.0 : 1.0;
+
+        for (; $step > 0.0001; $step /= 4.0) {
+            $left = self::solarWhenGlobEdgeDistance($tjdEt - $step, $flags);
+            $middle = self::solarWhenGlobEdgeDistance($tjdEt, $flags);
+            $right = self::solarWhenGlobEdgeDistance($tjdEt + $step, $flags);
+
+            $tjdEt += self::parabolicMinimumOffset($left, $middle, $right, $step);
+        }
+
+        return $tjdEt;
+    }
+
+    private static function solarWhenGlobEdgeDistance(float $tjdEt, int $flags): float
+    {
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags) | Catalog::SEFLG_EQUATORIAL;
+
+        $sun = Calculator::calc($tjdEt, Catalog::SE_SUN, $calcFlags);
+        $moon = Calculator::calc($tjdEt, Catalog::SE_MOON, $calcFlags);
+
+        if ($sun['rc'] === SwissDate::ERR || $moon['rc'] === SwissDate::ERR) {
+            return INF;
+        }
+
+        $separation = self::angularSeparationDegrees($sun['xx'], $moon['xx']);
+        $sunRadius = rad2deg(asin(self::RSUN / $sun['xx'][2]));
+        $moonRadius = rad2deg(asin(self::RMOON / $moon['xx'][2]));
+
+        return $separation - ($sunRadius + $moonRadius);
+    }
+
+    private static function parabolicMinimumOffset(float $left, float $middle, float $right, float $step): float
+    {
+        $denominator = $left - 2.0 * $middle + $right;
+
+        if (abs($denominator) < 1e-15) {
+            return 0.0;
+        }
+
+        return $step * ($left - $right) / (2.0 * $denominator);
+    }
+
+    private static function dynamicalToUniversalTime(float $tjdEt, int $flags): float
+    {
+        $tjdUt = $tjdEt - DeltaT::deltatEx($tjdEt, $flags);
+        $tjdUt = $tjdEt - DeltaT::deltatEx($tjdUt, $flags);
+
+        return $tjdEt - DeltaT::deltatEx($tjdUt, $flags);
+    }
+
+    private static function solarWhenGlobPartialContact(float $maximumUt, int $flags, int $direction): float
+    {
+        $step = 2.0 / 24.0;
+        $inside = $maximumUt;
+        $outside = $maximumUt + $direction * $step;
+
+        for ($attempt = 0; $attempt < 40 && self::solarWhenGlobPartialContactMetric($outside, $flags) > 0.0; $attempt++) {
+            $inside = $outside;
+            $step *= 1.5;
+            $outside = $maximumUt + $direction * $step;
+        }
+
+        if (self::solarWhenGlobPartialContactMetric($outside, $flags) > 0.0) {
+            return 0.0;
+        }
+
+        if ($direction < 0) {
+            $left = $outside;
+            $right = $inside;
+        } else {
+            $left = $inside;
+            $right = $outside;
+        }
+
+        for ($i = 0; $i < 60; $i++) {
+            $middle = ($left + $right) / 2.0;
+
+            if (self::solarWhenGlobPartialContactMetric($middle, $flags) > 0.0) {
+                if ($direction < 0) {
+                    $right = $middle;
+                } else {
+                    $left = $middle;
+                }
+            } else {
+                if ($direction < 0) {
+                    $left = $middle;
+                } else {
+                    $right = $middle;
+                }
+            }
+        }
+
+        return $direction < 0 ? $right : $left;
+    }
+
+    private static function solarWhenGlobPartialContactMetric(float $tjdUt, int $flags): float
+    {
+        $shadow = self::solarWhenGlobShadowGeometry($tjdUt, $flags);
+
+        if ($shadow === null) {
+            return -INF;
+        }
+
+        return $shadow['penumbraDiameterKm'] / 2.0
+            + 6378.140 / $shadow['cosf1']
+            - $shadow['axisDistanceKm'];
+    }
+
+    /**
+     * @return array{axisDistanceKm:float, umbraDiameterKm:float, penumbraDiameterKm:float, cosf1:float, cosf2:float}|null
+     */
+    private static function solarWhenGlobShadowGeometry(float $tjdUt, int $flags): ?array
+    {
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags)
+            | Catalog::SEFLG_SPEED
+            | Catalog::SEFLG_EQUATORIAL
+            | Catalog::SEFLG_RADIANS;
+
+        $moon = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $calcFlags);
+        $sun = Calculator::calcUt($tjdUt, Catalog::SE_SUN, $calcFlags);
+
+        if ($moon['rc'] === SwissDate::ERR || $sun['rc'] === SwissDate::ERR) {
+            return null;
+        }
+
+        $earthOblateness = 1.0 - self::EARTH_OBLATENESS;
+
+        for ($iteration = 0; $iteration < 2; $iteration++) {
+            $rm = Coordinates::polcart([
+                $moon['xx'][0],
+                $moon['xx'][1],
+                $moon['xx'][2],
+            ]);
+            $rm[2] /= $earthOblateness;
+            $dm = self::vectorLength($rm);
+
+            $rs = Coordinates::polcart([
+                $sun['xx'][0],
+                $sun['xx'][1],
+                $sun['xx'][2],
+            ]);
+            $rs[2] /= $earthOblateness;
+
+            $e = [
+                $rm[0] - $rs[0],
+                $rm[1] - $rs[1],
+                $rm[2] - $rs[2],
+            ];
+            $dsm = self::vectorLength($e);
+
+            for ($i = 0; $i < 3; $i++) {
+                $e[$i] /= $dsm;
+            }
+
+            $sinf1 = (self::RSUN - self::RMOON) / $dsm;
+            $cosf1 = sqrt(1.0 - $sinf1 * $sinf1);
+            $sinf2 = (self::RSUN + self::RMOON) / $dsm;
+            $cosf2 = sqrt(1.0 - $sinf2 * $sinf2);
+
+            $s0 = -self::dot($rm, $e);
+            $r0 = sqrt($dm * $dm - $s0 * $s0);
+
+            $d0 = ($s0 / $dsm * (self::DSUN - self::DMOON) - self::DMOON) / $cosf1;
+            $D0 = ($s0 / $dsm * (self::DSUN + self::DMOON) + self::DMOON) / $cosf2;
+
+            $distance = $s0 * $s0 + self::REARTH * self::REARTH - $dm * $dm;
+            $distance = $distance > 0.0 ? sqrt($distance) : 0.0;
+            $shadowDistance = $s0 - $distance;
+
+            $xs = [
+                $rm[0] + $shadowDistance * $e[0],
+                $rm[1] + $shadowDistance * $e[1],
+                $rm[2] + $shadowDistance * $e[2],
+            ];
+
+            $xst = $xs;
+            $xst[2] *= $earthOblateness;
+            $polar = Coordinates::cartpol($xst);
+
+            if ($iteration === 0) {
+                $cosLatitude = cos($polar[1]);
+                $sinLatitude = sin($polar[1]);
+                $flattening = 1.0 - self::EARTH_OBLATENESS;
+                $cc = 1.0 / sqrt($cosLatitude * $cosLatitude + $flattening * $flattening * $sinLatitude * $sinLatitude);
+                $earthOblateness = $flattening * $flattening * $cc;
+                continue;
+            }
+
+            return [
+                'axisDistanceKm' => $r0 * self::AUNIT_METERS / 1000.0,
+                'umbraDiameterKm' => $d0 * self::AUNIT_METERS / 1000.0,
+                'penumbraDiameterKm' => $D0 * self::AUNIT_METERS / 1000.0,
+                'cosf1' => $cosf1,
+                'cosf2' => $cosf2,
+            ];
+        }
+
+        return null;
     }
 
     /**
