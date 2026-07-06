@@ -497,12 +497,50 @@ final class Eclipse
         int     $flags = Catalog::SEFLG_DEFAULTEPH,
     ): array
     {
+        $body = self::normalizeLunarOccultBody($body);
+
+        if ($starName !== null && trim($starName) !== '') {
+            return [
+                'rc' => SwissDate::ERR,
+                'geopos' => array_fill(0, 10, 0.0),
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => 'fixed-star lunar occultation where is not implemented',
+            ];
+        }
+
+        $maximum = self::lunarOccultWhereMaximum($tjdUt, $body, $flags);
+
+        if ($maximum === null) {
+            return [
+                'rc' => SwissDate::ERR,
+                'geopos' => array_fill(0, 10, 0.0),
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => 'lunar occultation where failed because body or Moon position could not be calculated',
+            ];
+        }
+
+        if ($maximum['how']['rc'] === 0) {
+            return [
+                'rc' => 0,
+                'geopos' => array_fill(0, 10, 0.0),
+                'attr' => $maximum['how']['attr'],
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => sprintf('no lunar occultation at tjd = %.6F', $tjdUt),
+            ];
+        }
+
+        $geopos = array_fill(0, 10, 0.0);
+        $geopos[0] = $maximum['longitude'];
+        $geopos[1] = $maximum['latitude'];
+
         return [
-            'rc' => SwissDate::ERR,
-            'geopos' => array_fill(0, 10, 0.0),
-            'attr' => array_fill(0, 20, 0.0),
-            'dcore' => [],
-            'error' => 'lunar occultation where is not implemented',
+            'rc' => $maximum['how']['rc'],
+            'geopos' => $geopos,
+            'attr' => $maximum['how']['attr'],
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => '',
         ];
     }
 
@@ -660,6 +698,140 @@ final class Eclipse
         return OccultationWhenResult::fromArray(
             self::lunarOccultWhenLoc($tjdUt, $body, $observer, $starName, $flags, $backward)
         );
+    }
+
+    /**
+     * @return array{longitude:float, latitude:float, how:array{rc:int, attr:array<int, float>}}|null
+     */
+    private static function lunarOccultWhereMaximum(float $tjdUt, int $body, int $flags): ?array
+    {
+        $best = null;
+
+        for ($longitude = -180.0; $longitude <= 180.0; $longitude += 30.0) {
+            for ($latitude = -60.0; $latitude <= 60.0; $latitude += 20.0) {
+                $how = self::lunarOccultAt($tjdUt, $body, $flags, new Observer($longitude, $latitude, 0.0));
+
+                if ($how === null) {
+                    return null;
+                }
+
+                if ($best === null || $how['separation'] < $best['separation']) {
+                    $best = [
+                        'longitude' => $longitude,
+                        'latitude' => $latitude,
+                        'separation' => $how['separation'],
+                    ];
+                }
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        foreach ([5.0, 2.0, 1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001] as $step) {
+            do {
+                $improved = false;
+
+                foreach ([[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as $delta) {
+                    $longitude = self::normalizeLongitude($best['longitude'] + $delta[0] * $step);
+                    $latitude = self::clamp($best['latitude'] + $delta[1] * $step, -89.9, 89.9);
+                    $how = self::lunarOccultAt($tjdUt, $body, $flags, new Observer($longitude, $latitude, 0.0));
+
+                    if ($how === null) {
+                        return null;
+                    }
+
+                    if ($how['separation'] < $best['separation']) {
+                        $best = [
+                            'longitude' => $longitude,
+                            'latitude' => $latitude,
+                            'separation' => $how['separation'],
+                        ];
+                        $improved = true;
+                    }
+                }
+            } while ($improved);
+        }
+
+        $how = self::lunarOccultAt(
+            $tjdUt,
+            $body,
+            $flags,
+            new Observer($best['longitude'], $best['latitude'], 0.0)
+        );
+
+        if ($how === null) {
+            return null;
+        }
+
+        return [
+            'longitude' => $best['longitude'],
+            'latitude' => $best['latitude'],
+            'how' => [
+                'rc' => $how['rc'],
+                'attr' => $how['attr'],
+            ],
+        ];
+    }
+
+    /**
+     * @return array{rc:int, attr:array<int, float>, separation:float}|null
+     */
+    private static function lunarOccultAt(float $tjdUt, int $body, int $flags, Observer $observer): ?array
+    {
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags) | Catalog::SEFLG_EQUATORIAL;
+
+        $moon = Calculator::calcTopoUt($tjdUt, Catalog::SE_MOON, $calcFlags, $observer);
+        $occulted = Calculator::calcTopoUt($tjdUt, $body, $calcFlags, $observer);
+
+        if ($moon['rc'] === SwissDate::ERR || $occulted['rc'] === SwissDate::ERR) {
+            return null;
+        }
+
+        $separation = self::angularSeparationDegrees($moon['xx'], $occulted['xx']);
+        $moonRadius = self::angularRadiusDegrees(self::DMOON, $moon['xx'][2]);
+        $bodyRadius = self::angularRadiusDegrees(self::bodyDiameterAu($body), $occulted['xx'][2]);
+
+        $attr = array_fill(0, 20, 0.0);
+        $attr[1] = $moonRadius > 0.0 ? $bodyRadius / $moonRadius : 0.0;
+        $attr[7] = $separation;
+
+        if ($bodyRadius <= 0.0 || $separation > $moonRadius + $bodyRadius) {
+            return [
+                'rc' => 0,
+                'attr' => $attr,
+                'separation' => $separation,
+            ];
+        }
+
+        $attr[0] = $separation <= max(0.0, $moonRadius - $bodyRadius)
+            ? 1.0
+            : max(0.0, min(1.0, ($moonRadius + $bodyRadius - $separation) / (2.0 * $bodyRadius)));
+        $attr[2] = self::discObscuration($bodyRadius, $moonRadius, $separation);
+        $attr[8] = $attr[0];
+
+        $rc = $attr[0] >= 1.0 ? Catalog::SE_ECL_TOTAL : Catalog::SE_ECL_PARTIAL;
+        $rc |= $separation <= 1e-4 ? Catalog::SE_ECL_CENTRAL : Catalog::SE_ECL_NONCENTRAL;
+
+        return [
+            'rc' => $rc,
+            'attr' => $attr,
+            'separation' => $separation,
+        ];
+    }
+
+    private static function normalizeLongitude(float $longitude): float
+    {
+        while ($longitude < -180.0) {
+            $longitude += 360.0;
+        }
+
+        while ($longitude > 180.0) {
+            $longitude -= 360.0;
+        }
+
+        return $longitude;
     }
 
     private static function lunarOccultGlobalMetric(float $tjdUt, int $body, int $flags): float
