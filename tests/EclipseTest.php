@@ -320,6 +320,12 @@ final class EclipseTest extends TestCase
         self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
         self::assertSame('', $result['error']);
         self::assertEqualsWithDelta(2460408.138703, $result['tret'][0], 1e-4);
+        self::assertEqualsWithDelta(2460408.049840209, $result['tret'][2], 1e-8);
+        self::assertEqualsWithDelta(2460408.227561862, $result['tret'][3], 1e-9);
+        self::assertEqualsWithDelta(2460408.0500537283, $result['tret'][4], 1e-8);
+        self::assertEqualsWithDelta(2460408.2273484287, $result['tret'][5], 1e-8);
+        self::assertEqualsWithDelta(2460408.0712584145, $result['tret'][6], 1e-8);
+        self::assertEqualsWithDelta(2460408.2061458323, $result['tret'][7], 1e-8);
         self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
         self::assertEqualsWithDelta(0.005082471739026862, $result['attr'][1], 1e-12);
         self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
@@ -365,6 +371,12 @@ final class EclipseTest extends TestCase
         self::assertTrue($result->isOccultation());
         self::assertTrue($result->isTotal());
         self::assertEqualsWithDelta(2460408.138703, $result->maximumTime(), 1e-4);
+        self::assertEqualsWithDelta(2460408.049840209, $result->partialBeginTime(), 1e-8);
+        self::assertEqualsWithDelta(2460408.227561862, $result->partialEndTime(), 1e-8);
+        self::assertEqualsWithDelta(2460408.0500537283, $result->totalityBeginTime(), 1e-8);
+        self::assertEqualsWithDelta(2460408.2273484287, $result->totalityEndTime(), 1e-8);
+        self::assertEqualsWithDelta(2460408.0712584145, $result->centralLineBeginTime(), 1e-8);
+        self::assertEqualsWithDelta(2460408.2061458323, $result->centralLineEndTime(), 1e-8);
         self::assertSame('', $result->result->error);
     }
 

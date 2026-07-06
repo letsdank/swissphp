@@ -617,6 +617,19 @@ final class Eclipse
                 }
 
                 if ($event['rc'] !== 0 && self::lunarOccultTypeMatches($event['rc'], $eclipseTypes)) {
+                    $event['tret'][2] = self::lunarOccultGlobalContact($maximum, $body, $flags, 'partial', -1);
+                    $event['tret'][3] = self::lunarOccultGlobalContact($maximum, $body, $flags, 'partial', 1);
+
+                    if (($event['rc'] & Catalog::SE_ECL_TOTAL) !== 0) {
+                        $event['tret'][4] = self::lunarOccultGlobalContact($maximum, $body, $flags, 'total', -1);
+                        $event['tret'][5] = self::lunarOccultGlobalContact($maximum, $body, $flags, 'total', 1);
+                    }
+
+                    if (($event['rc'] & Catalog::SE_ECL_CENTRAL) !== 0) {
+                        $event['tret'][6] = self::lunarOccultGlobalContact($maximum, $body, $flags, 'central', -1);
+                        $event['tret'][7] = self::lunarOccultGlobalContact($maximum, $body, $flags, 'central', 1);
+                    }
+
                     return $event;
                 }
             }
@@ -834,20 +847,105 @@ final class Eclipse
         return $longitude;
     }
 
-    private static function lunarOccultGlobalMetric(float $tjdUt, int $body, int $flags): float
+    private static function lunarOccultGlobalContact(
+        float  $maximum,
+        int    $body,
+        int    $flags,
+        string $phase,
+        int    $direction
+    ): float
+    {
+        $step = 0.05;
+        $inside = $maximum;
+        $outside = $maximum + $direction * $step;
+
+        for (
+            $attempt = 0;
+            $attempt < 60 && self::lunarOccultGlobalContactMetric($outside, $body, $flags, $phase) <= 0.0;
+            $attempt++
+        ) {
+            $inside = $outside;
+            $step *= 1.5;
+            $outside = $maximum + $direction * $step;
+        }
+
+        if (self::lunarOccultGlobalContactMetric($outside, $body, $flags, $phase) <= 0.0) {
+            return 0.0;
+        }
+
+        if ($direction < 0) {
+            $left = $outside;
+            $right = $inside;
+        } else {
+            $left = $inside;
+            $right = $outside;
+        }
+
+        for ($i = 0; $i < 80; $i++) {
+            $middle = ($left + $right) / 2.0;
+
+            if (self::lunarOccultGlobalContactMetric($middle, $body, $flags, $phase) <= 0.0) {
+                if ($direction < 0) {
+                    $right = $middle;
+                } else {
+                    $left = $middle;
+                }
+            } else {
+                if ($direction < 0) {
+                    $left = $middle;
+                } else {
+                    $right = $middle;
+                }
+            }
+        }
+
+        return $direction < 0 ? $right : $left;
+    }
+
+    private static function lunarOccultGlobalContactMetric(float $tjdUt, int $body, int $flags, string $phase): float
+    {
+        $geometry = self::lunarOccultGlobalGeometry($tjdUt, $body, $flags);
+
+        if ($geometry === null) {
+            return INF;
+        }
+
+        return match ($phase) {
+            'total' => $geometry['separation'] - ($geometry['horizontalParallax'] + max(0.0, $geometry['moonRadius'] - $geometry['bodyRadius'])),
+            'central' => $geometry['separation'] - $geometry['horizontalParallax'],
+            default => $geometry['separation'] - ($geometry['horizontalParallax'] + $geometry['moonRadius'] + $geometry['bodyRadius']),
+        };
+    }
+
+    /**
+     * @return array{separation:float, horizontalParallax:float, moonRadius:float, bodyRadius:float}|null
+     */
+    private static function lunarOccultGlobalGeometry(float $tjdUt, int $body, int $flags): ?array
     {
         $bodies = self::lunarOccultBodies($tjdUt, $body, $flags);
 
         if ($bodies === null) {
+            return null;
+        }
+
+        return [
+            'separation' => self::angularSeparationDegrees($bodies['moon'], $bodies['body']),
+            'horizontalParallax' => self::angularRadiusDegrees(self::DEARTH, $bodies['moon'][2]),
+            'moonRadius' => self::angularRadiusDegrees(self::DMOON, $bodies['moon'][2]),
+            'bodyRadius' => self::angularRadiusDegrees(self::bodyDiameterAu($body), $bodies['body'][2]),
+        ];
+    }
+
+    private static function lunarOccultGlobalMetric(float $tjdUt, int $body, int $flags): float
+    {
+        $geometry = self::lunarOccultGlobalGeometry($tjdUt, $body, $flags);
+
+        if ($geometry === null) {
             return INF;
         }
 
-        $separation = self::angularSeparationDegrees($bodies['moon'], $bodies['body']);
-        $moonRadius = self::angularRadiusDegrees(self::DMOON, $bodies['moon'][2]);
-        $bodyRadius = self::angularRadiusDegrees(self::bodyDiameterAu($body), $bodies['body'][2]);
-        $horizontalParallax = self::angularRadiusDegrees(self::DEARTH, $bodies['moon'][2]);
-
-        return $separation - ($horizontalParallax + $moonRadius + $bodyRadius);
+        return $geometry['separation']
+            - ($geometry['horizontalParallax'] + $geometry['moonRadius'] + $geometry['bodyRadius']);
     }
 
     private static function lunarOccultGlobalMaximum(float $estimate, int $body, int $flags): float
@@ -886,10 +984,16 @@ final class Eclipse
             return self::lunarOccultWhenError('lunar occultation search failed because body or Moon position could not be calculated');
         }
 
-        $separation = self::angularSeparationDegrees($bodies['moon'], $bodies['body']);
-        $moonRadius = self::angularRadiusDegrees(self::DMOON, $bodies['moon'][2]);
-        $bodyRadius = self::angularRadiusDegrees(self::bodyDiameterAu($body), $bodies['body'][2]);
-        $horizontalParallax = self::angularRadiusDegrees(self::DEARTH, $bodies['moon'][2]);
+        $geometry = self::lunarOccultGlobalGeometry($maximum, $body, $flags);
+
+        if ($geometry === null) {
+            return self::lunarOccultWhenError('lunar occultation search failed because body or Moon position could not be calculated');
+        }
+
+        $separation = $geometry['separation'];
+        $moonRadius = $geometry['moonRadius'];
+        $bodyRadius = $geometry['bodyRadius'];
+        $horizontalParallax = $geometry['horizontalParallax'];
         $topocentricSeparation = max(0.0, $separation - $horizontalParallax);
 
         if ($topocentricSeparation > $moonRadius + $bodyRadius) {
