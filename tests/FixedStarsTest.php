@@ -8,11 +8,17 @@ use PHPUnit\Framework\TestCase;
 use SwissEph\Calculator;
 use SwissEph\Catalog;
 use SwissEph\DeltaT;
+use SwissEph\FixedStarCatalog;
 use SwissEph\FixedStars;
 use SwissEph\SwissDate;
 
 final class FixedStarsTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        FixedStars::resetCatalog();
+    }
+
     public function testSiriusCanBeReturnedInEquatorialJ2000Coordinates(): void
     {
         $result = FixedStars::fixstar(
@@ -153,5 +159,83 @@ final class FixedStarsTest extends TestCase
         self::assertSame(FixedStars::names(), Calculator::fixedStarNames());
         self::assertTrue(Calculator::fixedStarExists('Sirius'));
         self::assertFalse(Calculator::fixedStarExists('Unknown Star'));
+    }
+
+    public function testCustomCatalogCanBeConfiguredFromString(): void
+    {
+        FixedStars::setCatalogFromString(
+            'Test Star|test alias|10.0|20.0|0.0|0.0|100.0|2.5'
+        );
+
+        self::assertSame(['Test Star'], FixedStars::names());
+        self::assertTrue(FixedStars::exists('test-alias'));
+
+        $result = FixedStars::fixstarMagnitude('test alias');
+
+        self::assertSame(SwissDate::OK, $result['rc']);
+        self::assertSame('Test Star', $result['star']);
+        self::assertSame(2.5, $result['mag']);
+    }
+
+    public function testCustomCatalogIsUsedForFixstar(): void
+    {
+        FixedStars::setCatalog(new FixedStarCatalog([
+            [
+                'name' => 'Custom Star',
+                'aliases' => ['custom alias'],
+                'ra' => 10.0,
+                'dec' => 20.0,
+                'pmRa' => 0.0,
+                'pmDec' => 0.0,
+                'parallax' => 100.0,
+                'mag' => 1.25,
+            ],
+        ]));
+
+        $flags = Catalog::SEFLG_J2000 | Catalog::SEFLG_EQUATORIAL | Catalog::SEFLG_SPEED;
+
+        $result = FixedStars::fixstar('custom alias', 2451545.0, $flags);
+
+        self::assertSame($flags | Catalog::SEFLG_SWIEPH, $result['rc']);
+        self::assertSame('Custom Star', $result['star']);
+        self::assertEqualsWithDelta(10.0, $result['xx'][0], 1e-12);
+        self::assertEqualsWithDelta(20.0, $result['xx'][1], 1e-12);
+        self::assertEqualsWithDelta(2062648.062471, $result['xx'][2], 1e-6);
+    }
+
+    public function testResetCatalogRestoresBuiltInCatalog(): void
+    {
+        FixedStars::setCatalogFromString(
+            'Test Star||10.0|20.0|0.0|0.0|100.0|2.5'
+        );
+
+        self::assertSame(['Test Star'], FixedStars::names());
+
+        FixedStars::resetCatalog();
+
+        self::assertSame(['Sirius', 'Aldebaran', 'Regulus', 'Spica'], FixedStars::names());
+    }
+
+    public function testCatalogCanBeLoadedFromConfiguredPath(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'swissphp-fixed-stars-');
+        self::assertIsString($path);
+
+        file_put_contents($path, 'Path Star|path alias|15.0|25.0|0.0|0.0|50.0|3.5');
+
+        try {
+            FixedStars::setCatalogPath($path);
+
+            self::assertSame(['Path Star'], FixedStars::names());
+            self::assertTrue(FixedStars::exists('path-alias'));
+
+            $result = FixedStars::fixstarMagnitude('path alias');
+
+            self::assertSame(SwissDate::OK, $result['rc']);
+            self::assertSame('Path Star', $result['star']);
+            self::assertSame(3.5, $result['mag']);
+        } finally {
+            @unlink($path);
+        }
     }
 }

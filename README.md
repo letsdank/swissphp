@@ -8,6 +8,12 @@ SwissPHP is a PHP port/reimplementation of core Swiss Ephemeris functionality.
 
 The project is in active development. It already includes a tested calculation core for dates, delta T, sidereal time, coordinates, houses, Moshier planetary and lunar positions, rise/set calculations, phenomena, nodes/apsides, orbital elements, fixed stars and early support for Swiss Ephemeris files.
 
+## Development workflow
+
+This project is an incremental native PHP reimplementation of Swiss Ephemeris.
+The translation and testing workflow is documented in
+[docs/translation-workflow.md](docs/translation-workflow.md).
+
 ## Requirements
 
 - PHP 8.4+
@@ -15,7 +21,9 @@ The project is in active development. It already includes a tested calculation c
 
 ## Installation
 
-Packagist publication is planned. For now, install from source:
+The package metadata is prepared for Composer usage, but tagged releases and
+Packagist publication are still pending. Until the first release is tagged,
+install from source.
 
 ```bash
 git clone https://github.com/letsdank/swissphp.git
@@ -73,15 +81,17 @@ Implemented areas include:
 - Nodes and apsides
 - Orbital elements
 - Fixed stars
-- Initial ephemeris file path and header support
+- Aspects and chart helper objects
+- Initial Swiss Ephemeris file reader foundation
+- Lunar eclipse circumstances and search
 
 Still in progress:
 
-- Full Swiss Ephemeris .se1 binary coefficient reader
+- Full integration of `.se1` ephemeris files into the main calculation pipeline
 - JPL ephemeris support
 - Full asteroid file support
 - Fill fixed-star catalog support
-- Eclipses and occultations
+- Solar eclipses, occultations, and full eclipse contact timelines
 - Heliacal events
 
 ## License

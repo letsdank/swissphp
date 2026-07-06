@@ -13,14 +13,21 @@ use SwissEph\Coordinates;
 use SwissEph\Crossing;
 use SwissEph\DeltaT;
 use SwissEph\EarthPosition;
+use SwissEph\Eclipse;
+use SwissEph\EclipseResult;
+use SwissEph\EclipseWhenResult;
 use SwissEph\MeanApogee;
 use SwissEph\MeanNode;
 use SwissEph\MoshierMoon;
 use SwissEph\Observer;
+use SwissEph\OccultationResult;
+use SwissEph\OccultationWhenResult;
 use SwissEph\OsculatingApogee;
 use SwissEph\Phenomena;
 use SwissEph\Precession;
 use SwissEph\SiderealTime;
+use SwissEph\SolarEclipseResult;
+use SwissEph\SolarEclipseWhenResult;
 use SwissEph\SolarPosition;
 use SwissEph\SwissDate;
 use SwissEph\TrueNode;
@@ -81,6 +88,290 @@ final class CalculatorTest extends TestCase
         self::assertSame(
             UtcTime::jdut1ToUtc(2457754.4999952596, SwissDate::GREGORIAN_CALENDAR),
             Calculator::jdut1ToUtc(2457754.4999952596, SwissDate::GREGORIAN_CALENDAR)
+        );
+    }
+
+    public function testCalculatorLunEclipseHowDelegatesToEclipse(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+
+        self::assertSame(
+            Eclipse::lunarHow($tjdUt),
+            Calculator::lunEclipseHow($tjdUt)
+        );
+    }
+
+    public function testCalculatorLunEclipseHowResultDelegatesToEclipse(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+
+        $result = Calculator::lunEclipseHowResult($tjdUt);
+
+        self::assertInstanceOf(EclipseResult::class, $result);
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(
+            Eclipse::lunarHowResult($tjdUt)->umbralMagnitude(),
+            $result->umbralMagnitude(),
+            1e-12
+        );
+    }
+
+    public function testCalculatorLunEclipseHowPassesObserver(): void
+    {
+        $tjdUt = SwissDate::julday(2000, 1, 21, 4.75, SwissDate::GREGORIAN_CALENDAR);
+        $observer = new Observer(13.4050, 52.5200, 34.0);
+
+        self::assertSame(
+            Eclipse::lunarHow($tjdUt, Catalog::SEFLG_DEFAULTEPH, $observer),
+            Calculator::lunEclipseHow($tjdUt, Catalog::SEFLG_DEFAULTEPH, $observer)
+        );
+    }
+
+    public function testCalculatorLunEclipseWhenDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::lunarWhen(2451545.0),
+            Calculator::lunEclipseWhen(2451545.0)
+        );
+    }
+
+    public function testCalculatorLunEclipseWhenLocDelegatesToEclipse(): void
+    {
+        $observer = new Observer(13.4050, 52.5200, 34.0);
+
+        self::assertSame(
+            Eclipse::lunarWhenLoc(2451545.0, Catalog::SEFLG_DEFAULTEPH, $observer),
+            Calculator::lunEclipseWhenLoc(2451545.0, $observer)
+        );
+    }
+
+    public function testCalculatorLunEclipseWhenLocResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunEclipseWhenLocResult(
+            2451545.0,
+            new Observer(13.4050, 52.5200, 34.0)
+        );
+
+        self::assertInstanceOf(EclipseWhenResult::class, $result);
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2451564.687058892, $result->maximumTime(), 1e-9);
+    }
+
+    public function testCalculatorLunOccultWhereDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::lunarOccultWhere(2460400.0, Catalog::SE_VENUS, 'Sirius'),
+            Calculator::lunOccultWhere(2460400.0, Catalog::SE_VENUS, 'Sirius')
+        );
+    }
+
+    public function testCalculatorLunOccultWhereResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunOccultWhereResult(2460400.0, Catalog::SE_VENUS, 'Sirius');
+
+        self::assertInstanceOf(OccultationResult::class, $result);
+        self::assertSame('fixed-star lunar occultation where is not implemented', $result->result->error);
+    }
+
+    public function testCalculatorLunOccultWhenGlobDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::lunarOccultWhenGlob(
+                2460400.0,
+                Catalog::SE_VENUS,
+                null,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+            ),
+            Calculator::lunOccultWhenGlob(
+                2460400.0,
+                Catalog::SE_VENUS,
+                null,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+            )
+        );
+    }
+
+    public function testCalculatorLunOccultWhenGlobResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunOccultWhenGlobResult(
+            2460400.0,
+            Catalog::SE_VENUS,
+            null,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+        );
+
+        self::assertInstanceOf(OccultationWhenResult::class, $result);
+        self::assertSame('central partial eclipses do not exist', $result->result->error);
+    }
+
+    public function testCalculatorLunOccultWhenLocDelegatesToEclipse(): void
+    {
+        $observer = new Observer(13.4050, 52.5200, 30000.0);
+
+        self::assertSame(
+            Eclipse::lunarOccultWhenLoc(2460400.0, Catalog::SE_VENUS, $observer),
+            Calculator::lunOccultWhenLoc(2460400.0, Catalog::SE_VENUS, $observer)
+        );
+    }
+
+    public function testCalculatorLunOccultWhenLocResultDelegatesToEclipse(): void
+    {
+        $observer = new Observer(13.4050, 52.5200, 30000.0);
+
+        $result = Calculator::lunOccultWhenLocResult(2460400.0, Catalog::SE_VENUS, $observer);
+
+        self::assertInstanceOf(OccultationWhenResult::class, $result);
+        self::assertSame(
+            'location for occultations must be between -500 and 25000 m above sea',
+            $result->result->error
+        );
+    }
+
+    public function testCalculatorEclipseWhenResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunEclipseWhenResult(2451545.0);
+
+        self::assertInstanceOf(EclipseWhenResult::class, $result);
+        self::assertEqualsWithDelta(
+            Eclipse::lunarWhenResult(2451545.0)->maximumTime(),
+            $result->maximumTime(),
+            1e-12
+        );
+    }
+
+    public function testCalculatorSolEclipseWhenLocDelegatesToEclipse(): void
+    {
+        $observer = new Observer(-104.9903, 39.7392, 1609.0);
+
+        self::assertSame(
+            Eclipse::solarWhenLoc(2460400.0, $observer),
+            Calculator::solEclipseWhenLoc(2460400.0, $observer)
+        );
+    }
+
+    public function testCalculatorSolEclipseWhenLocResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::solEclipseWhenLocResult(
+            2460000.0,
+            new Observer(-104.9903, 39.7392, 1609.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isPartial());
+        self::assertEqualsWithDelta(2460232.1618292737, $result->maximumTime(), 1e-9);
+    }
+
+    public function testCalculatorSolEclipseWhenGlobDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::solarWhenGlob(2460400.0),
+            Calculator::solEclipseWhenGlob(2460400.0)
+        );
+    }
+
+    public function testCalculatorSolEclipseWhenGlobResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::solEclipseWhenGlobResult(2460400.0);
+
+        self::assertInstanceOf(SolarEclipseWhenResult::class, $result);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2460409.2240756718, $result->maximumTime(), 1e-9);
+    }
+
+    public function testCalculatorSolEclipseWhenGlobPreservesTypeFilterErrors(): void
+    {
+        $result = Calculator::solEclipseWhenGlob(
+            2460409.0,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame('central partial eclipses do not exist', $result['error']);
+    }
+
+    public function testCalculatorSolEclipseWhenGlobDelegatesTypeFilters(): void
+    {
+        self::assertSame(
+            Eclipse::solarWhenGlob(
+                2460000.0,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_ANNULAR
+            ),
+            Calculator::solEclipseWhenGlob(
+                2460000.0,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_ANNULAR
+            )
+        );
+    }
+
+    public function testCalculatorSolEclipseWhereDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::solarWhere(2460409.222222222),
+            Calculator::solEclipseWhere(2460409.222222222)
+        );
+    }
+
+    public function testCalculatorSolEclipseWherePreservesNoEclipseShape(): void
+    {
+        $result = Calculator::solEclipseWhere(2451545.0);
+
+        self::assertSame(0, $result['rc']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame('no solar eclipse at tjd = 2451545.000000', $result['error']);
+    }
+
+    public function testCalculatorSolEclipseWhereResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::solEclipseWhereResult(2460409.222222222);
+
+        self::assertInstanceOf(SolarEclipseResult::class, $result);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(-188.1032147468757, $result->coreShadowDiameterKm(), 1e-9);
+    }
+
+    public function testCalculatorSolEclipseHowDelegatesToEclipse(): void
+    {
+        $observer = new Observer(-104.9903, 39.7392, 1609.0);
+
+        self::assertSame(
+            Eclipse::solarHow(2460409.224305555, $observer),
+            Calculator::solEclipseHow(2460409.224305555, $observer)
+        );
+    }
+
+    public function testCalculatorSolEclipseHowResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::solEclipseHowResult(
+            2460409.224305555,
+            new Observer(-104.9903, 39.7392, 1609.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseResult::class, $result);
+        self::assertTrue($result->isEclipse());
+        self::assertTrue($result->isPartial());
+    }
+
+    public function testCalculatorSolEclipseHowResultPreservesErrors(): void
+    {
+        $result = Calculator::solEclipseHowResult(
+            2460409.25,
+            new Observer(-104.9903, 39.7392, 30000.0)
+        );
+
+        self::assertInstanceOf(SolarEclipseResult::class, $result);
+        self::assertFalse($result->isEclipse());
+        self::assertSame(
+            'location for eclipses must be between -500 and 25000 m above sea',
+            $result->result->error
         );
     }
 

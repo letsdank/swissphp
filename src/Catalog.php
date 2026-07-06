@@ -95,6 +95,42 @@ final class Catalog
     public const SE_HOR2ECL = 0;
     public const SE_HOR2EQU = 1;
 
+    public const SE_ECL_CENTRAL = 1;
+    public const SE_ECL_NONCENTRAL = 2;
+    public const SE_ECL_TOTAL = 4;
+    public const SE_ECL_ANNULAR = 8;
+    public const SE_ECL_PARTIAL = 16;
+    public const SE_ECL_ANNULAR_TOTAL = 32;
+    public const SE_ECL_HYBRID = self::SE_ECL_ANNULAR_TOTAL;
+    public const SE_ECL_PENUMBRAL = 64;
+
+    public const SE_ECL_ALLTYPES_SOLAR = self::SE_ECL_CENTRAL
+    | self::SE_ECL_NONCENTRAL
+    | self::SE_ECL_TOTAL
+    | self::SE_ECL_ANNULAR
+    | self::SE_ECL_PARTIAL
+    | self::SE_ECL_ANNULAR_TOTAL;
+
+    public const SE_ECL_ALLTYPES_LUNAR = self::SE_ECL_TOTAL
+    | self::SE_ECL_PARTIAL
+    | self::SE_ECL_PENUMBRAL;
+
+    public const SE_ECL_VISIBLE = 128;
+    public const SE_ECL_MAX_VISIBLE = 256;
+    public const SE_ECL_1ST_VISIBLE = 512;
+    public const SE_ECL_PARTBEG_VISIBLE = self::SE_ECL_1ST_VISIBLE;
+    public const SE_ECL_2ND_VISIBLE = 1024;
+    public const SE_ECL_TOTBEG_VISIBLE = self::SE_ECL_2ND_VISIBLE;
+    public const SE_ECL_3RD_VISIBLE = 2048;
+    public const SE_ECL_TOTEND_VISIBLE = self::SE_ECL_3RD_VISIBLE;
+    public const SE_ECL_4TH_VISIBLE = 4096;
+    public const SE_ECL_PARTEND_VISIBLE = self::SE_ECL_4TH_VISIBLE;
+    public const SE_ECL_PENUMBBEG_VISIBLE = 8192;
+    public const SE_ECL_PENUMBEND_VISIBLE = 16384;
+    public const SE_ECL_OCC_BEG_DAYLIGHT = 8192;
+    public const SE_ECL_OCC_END_DAYLIGHT = 16384;
+    public const SE_ECL_ONE_TRY = 32768;
+
     public const SE_SIDM_FAGAN_BRADLEY = 0;
     public const SE_SIDM_LAHIRI = 1;
     public const SE_SIDM_DELUCE = 2;
