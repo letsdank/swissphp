@@ -288,26 +288,29 @@ final class EclipseTest extends TestCase
         self::assertEqualsWithDelta(2451564.7974327924, $result['tret'][9], 1e-9);
     }
 
-    public function testLunarOccultWhereReturnsPlaceholderShape(): void
+    public function testLunarOccultWhereFindsMaximumPlace(): void
     {
-        $result = Eclipse::lunarOccultWhere(2460400.0, Catalog::SE_VENUS);
+        $result = Eclipse::lunarOccultWhere(2460408.138703, Catalog::SE_VENUS);
 
-        self::assertSame(SwissDate::ERR, $result['rc']);
-        self::assertCount(10, $result['geopos']);
-        self::assertCount(20, $result['attr']);
-        self::assertSame([], $result['dcore']);
-        self::assertSame('lunar occultation where is not implemented', $result['error']);
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(118.7373, $result['geopos'][0], 1e-3);
+        self::assertEqualsWithDelta(24.65515, $result['geopos'][1], 1e-3);
+        self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(0.005165246324353982, $result['attr'][1], 1e-9);
+        self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][8], 1e-12);
+        self::assertSame(array_fill(0, 10, 0.0), $result['dcore']);
     }
 
     public function testLunarOccultWhereResultWrapsArrayResult(): void
     {
-        $result = Eclipse::lunarOccultWhereResult(2460400.0, Catalog::SE_VENUS);
+        $result = Eclipse::lunarOccultWhereResult(2460408.138703, Catalog::SE_VENUS);
 
         self::assertInstanceOf(OccultationResult::class, $result);
-        self::assertFalse($result->isOccultation());
-        self::assertSame(0.0, $result->geographicLongitude());
-        self::assertSame(0.0, $result->geographicLatitude());
-        self::assertSame('lunar occultation where is not implemented', $result->result->error);
+        self::assertTrue($result->isOccultation());
+        self::assertTrue($result->isTotal());
+        self::assertSame('', $result->result->error);
     }
 
     public function testLunarOccultWhenGlobFindsPlanetaryOccultation(): void
