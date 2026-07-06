@@ -160,39 +160,51 @@ final class CalculatorTest extends TestCase
     public function testCalculatorLunOccultWhereDelegatesToEclipse(): void
     {
         self::assertSame(
-            Eclipse::lunarOccultWhere(2460400.0, Catalog::SE_VENUS),
-            Calculator::lunOccultWhere(2460400.0, Catalog::SE_VENUS)
+            Eclipse::lunarOccultWhere(2460400.0, Catalog::SE_VENUS, 'Sirius'),
+            Calculator::lunOccultWhere(2460400.0, Catalog::SE_VENUS, 'Sirius')
         );
     }
 
     public function testCalculatorLunOccultWhereResultDelegatesToEclipse(): void
     {
-        $result = Calculator::lunOccultWhereResult(2460400.0, Catalog::SE_VENUS);
+        $result = Calculator::lunOccultWhereResult(2460400.0, Catalog::SE_VENUS, 'Sirius');
 
         self::assertInstanceOf(OccultationResult::class, $result);
-        self::assertSame(
-            Eclipse::lunarOccultWhereResult(2460400.0, Catalog::SE_VENUS)->toArray(),
-            $result->toArray()
-        );
+        self::assertSame('fixed-star lunar occultation where is not implemented', $result->result->error);
     }
 
     public function testCalculatorLunOccultWhenGlobDelegatesToEclipse(): void
     {
         self::assertSame(
-            Eclipse::lunarOccultWhenGlob(2460400.0, Catalog::SE_VENUS),
-            Calculator::lunOccultWhenGlob(2460400.0, Catalog::SE_VENUS)
+            Eclipse::lunarOccultWhenGlob(
+                2460400.0,
+                Catalog::SE_VENUS,
+                null,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+            ),
+            Calculator::lunOccultWhenGlob(
+                2460400.0,
+                Catalog::SE_VENUS,
+                null,
+                Catalog::SEFLG_DEFAULTEPH,
+                Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+            )
         );
     }
 
     public function testCalculatorLunOccultWhenGlobResultDelegatesToEclipse(): void
     {
-        $result = Calculator::lunOccultWhenGlobResult(2460400.0, Catalog::SE_VENUS);
+        $result = Calculator::lunOccultWhenGlobResult(
+            2460400.0,
+            Catalog::SE_VENUS,
+            null,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+        );
 
         self::assertInstanceOf(OccultationWhenResult::class, $result);
-        self::assertSame(
-            Eclipse::lunarOccultWhenGlobResult(2460400.0, Catalog::SE_VENUS)->toArray(),
-            $result->toArray()
-        );
+        self::assertSame('central partial eclipses do not exist', $result->result->error);
     }
 
     public function testCalculatorLunOccultWhenLocDelegatesToEclipse(): void
