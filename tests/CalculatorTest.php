@@ -209,7 +209,7 @@ final class CalculatorTest extends TestCase
 
     public function testCalculatorLunOccultWhenLocDelegatesToEclipse(): void
     {
-        $observer = new Observer(13.4050, 52.5200, 34.0);
+        $observer = new Observer(13.4050, 52.5200, 30000.0);
 
         self::assertSame(
             Eclipse::lunarOccultWhenLoc(2460400.0, Catalog::SE_VENUS, $observer),
@@ -219,14 +219,14 @@ final class CalculatorTest extends TestCase
 
     public function testCalculatorLunOccultWhenLocResultDelegatesToEclipse(): void
     {
-        $observer = new Observer(13.4050, 52.5200, 34.0);
+        $observer = new Observer(13.4050, 52.5200, 30000.0);
 
         $result = Calculator::lunOccultWhenLocResult(2460400.0, Catalog::SE_VENUS, $observer);
 
         self::assertInstanceOf(OccultationWhenResult::class, $result);
         self::assertSame(
-            Eclipse::lunarOccultWhenLocResult(2460400.0, Catalog::SE_VENUS, $observer)->toArray(),
-            $result->toArray()
+            'location for occultations must be between -500 and 25000 m above sea',
+            $result->result->error
         );
     }
 
