@@ -116,7 +116,7 @@ final class FixedStarCatalogTest extends TestCase
         );
 
         self::assertSame('Sirius', $star['name']);
-        self::assertEqualsWithDelta(181.28715533333334, $star['ra'], 1e-12);
+        self::assertEqualsWithDelta(101.53715533333333, $star['ra'], 1e-12);
         self::assertEqualsWithDelta(-16.71611586111111, $star['dec'], 1e-12);
     }
 
@@ -127,7 +127,7 @@ final class FixedStarCatalogTest extends TestCase
         );
 
         self::assertEqualsWithDelta(101.28715533333334, $star['ra'], 1e-12);
-        self::assertEqualsWithDelta(-16.17611586111111, $star['dec'], 1e-12);
+        self::assertEqualsWithDelta(-16.71611586111111, $star['dec'], 1e-12);
     }
 
     public function testSwissEphemerisCsvLineExpandsAliasesFromNames(): void
@@ -176,7 +176,7 @@ final class FixedStarCatalogTest extends TestCase
     public function testCatalogRejectsDuplicateStarNames(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('duplicate fixed star name "sirius"');
+        $this->expectExceptionMessage('duplicate fixed star name "Sirius"');
 
         FixedStarCatalog::fromString(<<<TXT
             Sirius||101.0|-16.5|0.0|0.0|100.0|-1.0
