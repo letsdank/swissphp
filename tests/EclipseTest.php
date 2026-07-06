@@ -321,6 +321,36 @@ final class EclipseTest extends TestCase
         self::assertSame('lunar occultation global search is not implemented', $result['error']);
     }
 
+    public function testLunarOccultWhenGlobRejectsCentralPartialSearch(): void
+    {
+        $result = Eclipse::lunarOccultWhenGlob(
+            2460400.0,
+            Catalog::SE_VENUS,
+            null,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame('central partial eclipses do not exist', $result['error']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['tret']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+    }
+
+    public function testLunarOccultWhenGlobRejectsAnnularPlanetOccultations(): void
+    {
+        $result = Eclipse::lunarOccultWhenGlob(
+            2460400.0,
+            Catalog::SE_VENUS,
+            null,
+            Catalog::SEFLG_DEFAULTEPH,
+            Catalog::SE_ECL_ANNULAR
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame('annular occultations do not exist for object 3', $result['error']);
+    }
+
     public function testLunarOccultWhenGlobResultWrapsArrayResult(): void
     {
         $result = Eclipse::lunarOccultWhenGlobResult(2460400.0, Catalog::SE_VENUS);
@@ -344,6 +374,24 @@ final class EclipseTest extends TestCase
         self::assertCount(20, $result['attr']);
         self::assertSame([], $result['dcore']);
         self::assertSame('lunar occultation local search is not implemented', $result['error']);
+    }
+
+    public function testLunarOccultWhenLocRejectsInvalidObserverAltitude(): void
+    {
+        $result = Eclipse::lunarOccultWhenLoc(
+            2460400.0,
+            Catalog::SE_VENUS,
+            new Observer(13.4050, 52.5200, 30000.0)
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame(array_fill(0, 10, 0.0), $result['tret']);
+        self::assertSame(array_fill(0, 20, 0.0), $result['attr']);
+        self::assertSame([], $result['dcore']);
+        self::assertSame(
+            'location for occultations must be between -500 and 25000 m above sea',
+            $result['error']
+        );
     }
 
     public function testLunarOccultWhenLocResultWrapsArrayResult(): void
