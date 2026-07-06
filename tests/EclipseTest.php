@@ -305,12 +305,32 @@ final class EclipseTest extends TestCase
 
     public function testLunarOccultWhereResultWrapsArrayResult(): void
     {
-        $result = Eclipse::lunarOccultWhereResult(2460408.138703, Catalog::SE_VENUS);
+        $array = [
+            'rc' => Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL,
+            'geopos' => [
+                0 => 118.7373,
+                1 => 24.65515,
+            ],
+            'attr' => [
+                0 => 1.0,
+                1 => 0.005165246324353982,
+                2 => 1.0,
+                7 => 0.0,
+                8 => 1.0,
+            ],
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => '',
+        ];
+
+        $result = OccultationResult::fromArray($array);
 
         self::assertInstanceOf(OccultationResult::class, $result);
         self::assertTrue($result->isOccultation());
         self::assertTrue($result->isTotal());
+        self::assertSame(118.7373, $result->geographicLongitude());
+        self::assertSame(24.65515, $result->geographicLatitude());
         self::assertSame('', $result->result->error);
+        self::assertSame($array, $result->toArray());
     }
 
     public function testLunarOccultWhenGlobFindsPlanetaryOccultation(): void
@@ -365,19 +385,42 @@ final class EclipseTest extends TestCase
 
     public function testLunarOccultWhenGlobResultWrapsArrayResult(): void
     {
-        $result = Eclipse::lunarOccultWhenGlobResult(2460400.0, Catalog::SE_VENUS);
+        $array = [
+            'rc' => Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL,
+            'tret' => [
+                0 => 2460408.138703,
+                2 => 2460408.049840209,
+                3 => 2460408.227561862,
+                4 => 2460408.0500537283,
+                5 => 2460408.2273484287,
+                6 => 2460408.0712584145,
+                7 => 2460408.2061458323,
+            ],
+            'attr' => [
+                0 => 1.0,
+                1 => 0.005082471739026862,
+                2 => 1.0,
+                7 => 0.3990773344417841,
+                8 => 1.0,
+            ],
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => '',
+        ];
+
+        $result = OccultationWhenResult::fromArray($array);
 
         self::assertInstanceOf(OccultationWhenResult::class, $result);
         self::assertTrue($result->isOccultation());
         self::assertTrue($result->isTotal());
-        self::assertEqualsWithDelta(2460408.138703, $result->maximumTime(), 1e-4);
-        self::assertEqualsWithDelta(2460408.049840209, $result->partialBeginTime(), 1e-8);
-        self::assertEqualsWithDelta(2460408.227561862, $result->partialEndTime(), 1e-8);
-        self::assertEqualsWithDelta(2460408.0500537283, $result->totalityBeginTime(), 1e-8);
-        self::assertEqualsWithDelta(2460408.2273484287, $result->totalityEndTime(), 1e-8);
-        self::assertEqualsWithDelta(2460408.0712584145, $result->centralLineBeginTime(), 1e-8);
-        self::assertEqualsWithDelta(2460408.2061458323, $result->centralLineEndTime(), 1e-8);
+        self::assertSame(2460408.138703, $result->maximumTime());
+        self::assertSame(2460408.049840209, $result->partialBeginTime());
+        self::assertSame(2460408.227561862, $result->partialEndTime());
+        self::assertSame(2460408.0500537283, $result->totalityBeginTime());
+        self::assertSame(2460408.2273484287, $result->totalityEndTime());
+        self::assertSame(2460408.0712584145, $result->centralLineBeginTime());
+        self::assertSame(2460408.2061458323, $result->centralLineEndTime());
         self::assertSame('', $result->result->error);
+        self::assertSame($array, $result->toArray());
     }
 
     public function testLunarOccultWhenLocReturnsPlaceholderShape(): void
