@@ -423,19 +423,26 @@ final class EclipseTest extends TestCase
         self::assertSame($array, $result->toArray());
     }
 
-    public function testLunarOccultWhenLocReturnsPlaceholderShape(): void
+    public function testLunarOccultWhenLocFindsLocalOccultation(): void
     {
         $result = Eclipse::lunarOccultWhenLoc(
             2460400.0,
             Catalog::SE_VENUS,
-            new Observer(13.4050, 52.5200, 34.0)
+            new Observer(118.7373, 24.65515, 0.0)
         );
 
-        self::assertSame(SwissDate::ERR, $result['rc']);
-        self::assertCount(10, $result['tret']);
-        self::assertCount(20, $result['attr']);
-        self::assertSame([], $result['dcore']);
-        self::assertSame('lunar occultation local search is not implemented', $result['error']);
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460408.138703, $result['tret'][0], 1e-5);
+        self::assertEqualsWithDelta(2460408.1245253463, $result['tret'][1], 1e-8);
+        self::assertEqualsWithDelta(2460408.12467109, $result['tret'][2], 1e-8);
+        self::assertEqualsWithDelta(2460408.152750381, $result['tret'][3], 1e-8);
+        self::assertEqualsWithDelta(2460408.152896424, $result['tret'][4], 1e-8);
+        self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(0.005165245932241569, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(5.8232119576615605e-5, $result['attr'][7], 1e-9);
+        self::assertEqualsWithDelta(1.0, $result['attr'][8], 1e-12);
     }
 
     public function testLunarOccultWhenLocRejectsInvalidObserverAltitude(): void
@@ -458,16 +465,38 @@ final class EclipseTest extends TestCase
 
     public function testLunarOccultWhenLocResultWrapsArrayResult(): void
     {
-        $result = Eclipse::lunarOccultWhenLocResult(
-            2460400.0,
-            Catalog::SE_VENUS,
-            new Observer(13.4050, 52.5200, 34.0)
-        );
+        $array = [
+            'rc' => Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL,
+            'tret' => [
+                0 => 2460408.138703,
+                1 => 2460408.1245253463,
+                2 => 2460408.12467109,
+                3 => 2460408.152750381,
+                4 => 2460408.152896424,
+            ],
+            'attr' => [
+                0 => 1.0,
+                1 => 0.005165245843888328,
+                2 => 1.0,
+                7 => 5.8232119576615605e-5,
+                8 => 1.0,
+            ],
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => '',
+        ];
+
+        $result = OccultationWhenResult::fromArray($array);
 
         self::assertInstanceOf(OccultationWhenResult::class, $result);
-        self::assertFalse($result->isOccultation());
-        self::assertSame(0.0, $result->maximumTime());
-        self::assertSame('lunar occultation local search is not implemented', $result->result->error);
+        self::assertTrue($result->isOccultation());
+        self::assertTrue($result->isTotal());
+        self::assertSame(2460408.138703, $result->maximumTime());
+        self::assertSame(2460408.1245253463, $result->firstContactTime());
+        self::assertSame(2460408.12467109, $result->secondContactTime());
+        self::assertSame(2460408.152750381, $result->thirdContactTime());
+        self::assertSame(2460408.152896424, $result->fourthContactTime());
+        self::assertSame('', $result->result->error);
+        self::assertSame($array, $result->toArray());
     }
 
     public function testSolarWhenLocFindsLocalMaximum(): void
