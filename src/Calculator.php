@@ -252,6 +252,89 @@ final class Calculator
     }
 
     /**
+     * Swiss Ephemeris compatible placeholder for swe_lun_occult_where().
+     *
+     * @return array{rc:int, geopos:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunOccultWhere(
+        float   $tjdUt,
+        int     $body,
+        ?string $starName = null,
+        int     $flags = Catalog::SEFLG_DEFAULTEPH,
+    ): array
+    {
+        return Eclipse::lunarOccultWhere($tjdUt, $body, $starName, $flags);
+    }
+
+    public static function lunOccultWhereResult(
+        float   $tjdUt,
+        int     $body,
+        ?string $starName = null,
+        int     $flags = Catalog::SEFLG_DEFAULTEPH,
+    ): OccultationResult
+    {
+        return Eclipse::lunarOccultWhereResult($tjdUt, $body, $starName, $flags);
+    }
+
+    /**
+     * Swiss Ephemeris compatible placeholder for swe_lun_occult_when_glob().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunOccultWhenGlob(
+        float   $tjdUt,
+        int     $body,
+        ?string $starName = null,
+        int     $flags = Catalog::SEFLG_DEFAULTEPH,
+        int     $eclipseTypes = Catalog::SE_ECL_ALLTYPES_SOLAR,
+        bool    $backward = false,
+    ): array
+    {
+        return Eclipse::lunarOccultWhenGlob($tjdUt, $body, $starName, $flags, $eclipseTypes, $backward);
+    }
+
+    public static function lunOccultWhenGlobResult(
+        float   $tjdUt,
+        int     $body,
+        ?string $starName = null,
+        int     $flags = Catalog::SEFLG_DEFAULTEPH,
+        int     $eclipseTypes = Catalog::SE_ECL_ALLTYPES_SOLAR,
+        bool    $backward = false,
+    ): OccultationWhenResult
+    {
+        return Eclipse::lunarOccultWhenGlobResult($tjdUt, $body, $starName, $flags, $eclipseTypes, $backward);
+    }
+
+    /**
+     * Swiss Ephemeris compatible placeholder for swe_lun_occult_when_loc().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunOccultWhenLoc(
+        float    $tjdUt,
+        int      $body,
+        Observer $observer,
+        ?string  $starName = null,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+    ): array
+    {
+        return Eclipse::lunarOccultWhenLoc($tjdUt, $body, $observer, $starName, $flags, $backward);
+    }
+
+    public static function lunOccultWhenLocResult(
+        float    $tjdUt,
+        int      $body,
+        Observer $observer,
+        ?string  $starName = null,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+    ): OccultationWhenResult
+    {
+        return Eclipse::lunarOccultWhenLocResult($tjdUt, $body, $observer, $starName, $flags, $backward);
+    }
+
+    /**
      * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_when_loc().
      *
      * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}

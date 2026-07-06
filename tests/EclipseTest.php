@@ -10,6 +10,8 @@ use SwissEph\Eclipse;
 use SwissEph\EclipseResult;
 use SwissEph\EclipseWhenResult;
 use SwissEph\Observer;
+use SwissEph\OccultationResult;
+use SwissEph\OccultationWhenResult;
 use SwissEph\SolarEclipseResult;
 use SwissEph\SolarEclipseWhenResult;
 use SwissEph\SwissDate;
@@ -284,6 +286,78 @@ final class EclipseTest extends TestCase
         self::assertSame(0.0, $result['tret'][7]);
         self::assertSame(0.0, $result['tret'][8]);
         self::assertEqualsWithDelta(2451564.7974327924, $result['tret'][9], 1e-9);
+    }
+
+    public function testLunarOccultWhereReturnsPlaceholderShape(): void
+    {
+        $result = Eclipse::lunarOccultWhere(2460400.0, Catalog::SE_VENUS);
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertCount(10, $result['geopos']);
+        self::assertCount(20, $result['attr']);
+        self::assertSame([], $result['dcore']);
+        self::assertSame('lunar occultation where is not implemented', $result['error']);
+    }
+
+    public function testLunarOccultWhereResultWrapsArrayResult(): void
+    {
+        $result = Eclipse::lunarOccultWhereResult(2460400.0, Catalog::SE_VENUS);
+
+        self::assertInstanceOf(OccultationResult::class, $result);
+        self::assertFalse($result->isOccultation());
+        self::assertSame(0.0, $result->geographicLongitude());
+        self::assertSame(0.0, $result->geographicLatitude());
+        self::assertSame('lunar occultation where is not implemented', $result->result->error);
+    }
+
+    public function testLunarOccultWhenGlobReturnsPlaceholderShape(): void
+    {
+        $result = Eclipse::lunarOccultWhenGlob(2460400.0, Catalog::SE_VENUS);
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertCount(10, $result['tret']);
+        self::assertCount(20, $result['attr']);
+        self::assertSame([], $result['dcore']);
+        self::assertSame('lunar occultation global search is not implemented', $result['error']);
+    }
+
+    public function testLunarOccultWhenGlobResultWrapsArrayResult(): void
+    {
+        $result = Eclipse::lunarOccultWhenGlobResult(2460400.0, Catalog::SE_VENUS);
+
+        self::assertInstanceOf(OccultationWhenResult::class, $result);
+        self::assertFalse($result->isOccultation());
+        self::assertSame(0.0, $result->maximumTime());
+        self::assertSame('lunar occultation global search is not implemented', $result->result->error);
+    }
+
+    public function testLunarOccultWhenLocReturnsPlaceholderShape(): void
+    {
+        $result = Eclipse::lunarOccultWhenLoc(
+            2460400.0,
+            Catalog::SE_VENUS,
+            new Observer(13.4050, 52.5200, 34.0)
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertCount(10, $result['tret']);
+        self::assertCount(20, $result['attr']);
+        self::assertSame([], $result['dcore']);
+        self::assertSame('lunar occultation local search is not implemented', $result['error']);
+    }
+
+    public function testLunarOccultWhenLocResultWrapsArrayResult(): void
+    {
+        $result = Eclipse::lunarOccultWhenLocResult(
+            2460400.0,
+            Catalog::SE_VENUS,
+            new Observer(13.4050, 52.5200, 34.0)
+        );
+
+        self::assertInstanceOf(OccultationWhenResult::class, $result);
+        self::assertFalse($result->isOccultation());
+        self::assertSame(0.0, $result->maximumTime());
+        self::assertSame('lunar occultation local search is not implemented', $result->result->error);
     }
 
     public function testSolarWhenLocFindsLocalMaximum(): void
