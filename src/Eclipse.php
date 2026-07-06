@@ -690,12 +690,68 @@ final class Eclipse
 
         $body = self::normalizeLunarOccultBody($body);
 
+        if ($starName !== null && trim($starName) !== '') {
+            return self::lunarOccultWhenError('fixed-star lunar occultation local search is not implemented');
+        }
+
+        $cursor = $tjdUt;
+        $tret = array_fill(0, 10, 0.0);
+        $attr = array_fill(0, 20, 0.0);
+        $dcore = array_fill(0, 10, 0.0);
+
+        for ($attempt = 0; $attempt < self::LOCAL_LUNAR_ECLIPSE_SEARCH_MAX_EVENTS; $attempt++) {
+            $global = self::lunarOccultWhenGlob(
+                $cursor,
+                $body,
+                null,
+                $flags,
+                Catalog::SE_ECL_ALLTYPES_SOLAR,
+                $backward
+            );
+
+            if ($global['rc'] === SwissDate::ERR) {
+                return $global;
+            }
+
+            if ($global['rc'] === 0) {
+                break;
+            }
+
+            $maximum = self::lunarOccultWhenLocMaximum($global['tret'][0], $body, $observer, $flags);
+            $local = self::lunarOccultAt($maximum, $body, $flags, $observer);
+
+            if ($local === null) {
+                return self::lunarOccultWhenError('lunar occultation local search failed because body or Moon position could not be calculated');
+            }
+
+            if ($local['rc'] !== 0) {
+                $tret[0] = $maximum;
+                $tret[1] = self::lunarOccultWhenLocContact($maximum, $body, $observer, $flags, 'partial', -1);
+                $tret[4] = self::lunarOccultWhenLocContact($maximum, $body, $observer, $flags, 'partial', 1);
+
+                if (($local['rc'] & Catalog::SE_ECL_TOTAL) !== 0) {
+                    $tret[2] = self::lunarOccultWhenLocContact($maximum, $body, $observer, $flags, 'total', -1);
+                    $tret[3] = self::lunarOccultWhenLocContact($maximum, $body, $observer, $flags, 'total', 1);
+                }
+
+                return [
+                    'rc' => $local['rc'],
+                    'tret' => $tret,
+                    'attr' => $local['attr'],
+                    'dcore' => $dcore,
+                    'error' => '',
+                ];
+            }
+
+            $cursor = $global['tret'][0] + ($backward ? -1e-5 : 1e-5);
+        }
+
         return [
-            'rc' => SwissDate::ERR,
-            'tret' => array_fill(0, 10, 0.0),
-            'attr' => array_fill(0, 20, 0.0),
-            'dcore' => [],
-            'error' => 'lunar occultation local search is not implemented',
+            'rc' => 0,
+            'tret' => $tret,
+            'attr' => $attr,
+            'dcore' => $dcore,
+            'error' => 'no local lunar occultation found within search window',
         ];
     }
 
@@ -711,6 +767,133 @@ final class Eclipse
         return OccultationWhenResult::fromArray(
             self::lunarOccultWhenLoc($tjdUt, $body, $observer, $starName, $flags, $backward)
         );
+    }
+
+    private static function lunarOccultWhenLocMaximum(
+        float    $estimate,
+        int      $body,
+        Observer $observer,
+        int      $flags
+    ): float
+    {
+        $bestTime = $estimate;
+        $bestMetric = self::lunarOccultWhenLocMetric($bestTime, $body, $observer, $flags, 'partial');
+
+        foreach ([0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 0.0005, 0.0002, 0.0001, 0.00005, 0.00002, 0.00001] as $step) {
+            do {
+                $improved = false;
+
+                foreach ([-1, 1] as $direction) {
+                    $candidateTime = $bestTime + $direction * $step;
+                    $candidateMetric = self::lunarOccultWhenLocMetric($candidateTime, $body, $observer, $flags, 'partial');
+
+                    if ($candidateMetric < $bestMetric) {
+                        $bestTime = $candidateTime;
+                        $bestMetric = $candidateMetric;
+                        $improved = true;
+                    }
+                }
+            } while ($improved);
+        }
+
+        return $bestTime;
+    }
+
+    private static function lunarOccultWhenLocContact(
+        float    $maximum,
+        int      $body,
+        Observer $observer,
+        int      $flags,
+        string   $phase,
+        int      $direction
+    ): float
+    {
+        $step = 0.02;
+        $inside = $maximum;
+        $outside = $maximum + $direction * $step;
+
+        for (
+            $attempt = 0;
+            $attempt < 60 && self::lunarOccultWhenLocMetric($outside, $body, $observer, $flags, $phase) <= 0.0;
+            $attempt++
+        ) {
+            $inside = $outside;
+            $step *= 1.5;
+            $outside = $maximum + $direction * $step;
+        }
+
+        if (self::lunarOccultWhenLocMetric($outside, $body, $observer, $flags, $phase) <= 0.0) {
+            return 0.0;
+        }
+
+        if ($direction < 0) {
+            $left = $outside;
+            $right = $inside;
+        } else {
+            $left = $inside;
+            $right = $outside;
+        }
+
+        for ($i = 0; $i < 80; $i++) {
+            $middle = ($left + $right) / 2.0;
+
+            if (self::lunarOccultWhenLocMetric($middle, $body, $observer, $flags, $phase) <= 0.0) {
+                if ($direction < 0) {
+                    $right = $middle;
+                } else {
+                    $left = $middle;
+                }
+            } else {
+                if ($direction < 0) {
+                    $left = $middle;
+                } else {
+                    $right = $middle;
+                }
+            }
+        }
+
+        return $direction < 0 ? $right : $left;
+    }
+
+    private static function lunarOccultWhenLocMetric(
+        float    $tjdUt,
+        int      $body,
+        Observer $observer,
+        int      $flags,
+        string   $phase
+    ): float
+    {
+        $geometry = self::lunarOccultWhenLocGeometry($tjdUt, $body, $observer, $flags);
+
+        if ($geometry === null) {
+            return INF;
+        }
+
+        return match ($phase) {
+            'total' => $geometry['separation'] - max(0.0, $geometry['moonRadius'] - $geometry['bodyRadius']),
+            default => $geometry['separation'] - ($geometry['moonRadius'] + $geometry['bodyRadius']),
+        };
+    }
+
+    /**
+     * @return array{separation:float, moonRadius:float, bodyRadius:float}|null
+     */
+    private static function lunarOccultWhenLocGeometry(float $tjdUt, int $body, Observer $observer, int $flags): ?array
+    {
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags) | Catalog::SEFLG_EQUATORIAL;
+
+        $moon = Calculator::calcTopoUt($tjdUt, Catalog::SE_MOON, $calcFlags, $observer);
+        $occulted = Calculator::calcTopoUt($tjdUt, $body, $calcFlags, $observer);
+
+        if ($moon['rc'] === SwissDate::ERR || $occulted['rc'] === SwissDate::ERR) {
+            return null;
+        }
+
+        return [
+            'separation' => self::angularSeparationDegrees($moon['xx'], $occulted['xx']),
+            'moonRadius' => self::angularRadiusDegrees(self::DMOON, $moon['xx'][2]),
+            'bodyRadius' => self::angularRadiusDegrees(self::bodyDiameterAu($body), $occulted['xx'][2]),
+        ];
     }
 
     /**
