@@ -20,6 +20,8 @@ use SwissEph\MeanApogee;
 use SwissEph\MeanNode;
 use SwissEph\MoshierMoon;
 use SwissEph\Observer;
+use SwissEph\OccultationResult;
+use SwissEph\OccultationWhenResult;
 use SwissEph\OsculatingApogee;
 use SwissEph\Phenomena;
 use SwissEph\Precession;
@@ -153,6 +155,67 @@ final class CalculatorTest extends TestCase
         self::assertInstanceOf(EclipseWhenResult::class, $result);
         self::assertTrue($result->isTotal());
         self::assertEqualsWithDelta(2451564.687058892, $result->maximumTime(), 1e-9);
+    }
+
+    public function testCalculatorLunOccultWhereDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::lunarOccultWhere(2460400.0, Catalog::SE_VENUS),
+            Calculator::lunOccultWhere(2460400.0, Catalog::SE_VENUS)
+        );
+    }
+
+    public function testCalculatorLunOccultWhereResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunOccultWhereResult(2460400.0, Catalog::SE_VENUS);
+
+        self::assertInstanceOf(OccultationResult::class, $result);
+        self::assertSame(
+            Eclipse::lunarOccultWhereResult(2460400.0, Catalog::SE_VENUS)->toArray(),
+            $result->toArray()
+        );
+    }
+
+    public function testCalculatorLunOccultWhenGlobDelegatesToEclipse(): void
+    {
+        self::assertSame(
+            Eclipse::lunarOccultWhenGlob(2460400.0, Catalog::SE_VENUS),
+            Calculator::lunOccultWhenGlob(2460400.0, Catalog::SE_VENUS)
+        );
+    }
+
+    public function testCalculatorLunOccultWhenGlobResultDelegatesToEclipse(): void
+    {
+        $result = Calculator::lunOccultWhenGlobResult(2460400.0, Catalog::SE_VENUS);
+
+        self::assertInstanceOf(OccultationWhenResult::class, $result);
+        self::assertSame(
+            Eclipse::lunarOccultWhenGlobResult(2460400.0, Catalog::SE_VENUS)->toArray(),
+            $result->toArray()
+        );
+    }
+
+    public function testCalculatorLunOccultWhenLocDelegatesToEclipse(): void
+    {
+        $observer = new Observer(13.4050, 52.5200, 34.0);
+
+        self::assertSame(
+            Eclipse::lunarOccultWhenLoc(2460400.0, Catalog::SE_VENUS, $observer),
+            Calculator::lunOccultWhenLoc(2460400.0, Catalog::SE_VENUS, $observer)
+        );
+    }
+
+    public function testCalculatorLunOccultWhenLocResultDelegatesToEclipse(): void
+    {
+        $observer = new Observer(13.4050, 52.5200, 34.0);
+
+        $result = Calculator::lunOccultWhenLocResult(2460400.0, Catalog::SE_VENUS, $observer);
+
+        self::assertInstanceOf(OccultationWhenResult::class, $result);
+        self::assertSame(
+            Eclipse::lunarOccultWhenLocResult(2460400.0, Catalog::SE_VENUS, $observer)->toArray(),
+            $result->toArray()
+        );
     }
 
     public function testCalculatorEclipseWhenResultDelegatesToEclipse(): void

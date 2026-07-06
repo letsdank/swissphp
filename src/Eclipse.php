@@ -470,6 +470,182 @@ final class Eclipse
     }
 
     /**
+     * Placeholder for swe_lun_occult_where().
+     *
+     * @return array{rc:int, geopos:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunarOccultWhere(
+        float   $tjdUt,
+        int     $body,
+        ?string $starName = null,
+        int     $flags = Catalog::SEFLG_DEFAULTEPH,
+    ): array
+    {
+        return [
+            'rc' => SwissDate::ERR,
+            'geopos' => array_fill(0, 10, 0.0),
+            'attr' => array_fill(0, 20, 0.0),
+            'dcore' => [],
+            'error' => 'lunar occultation where is not implemented',
+        ];
+    }
+
+    public static function lunarOccultWhereResult(
+        float   $tjdUt,
+        int     $body,
+        ?string $starName = null,
+        int     $flags = Catalog::SEFLG_DEFAULTEPH,
+    ): OccultationResult
+    {
+        return OccultationResult::fromArray(self::lunarOccultWhere($tjdUt, $body, $starName, $flags));
+    }
+
+    /**
+     * Placeholder for swe_lun_occult_when_glob().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunarOccultWhenGlob(
+        float   $tjdUt,
+        int     $body,
+        ?string $starName = null,
+        int     $flags = Catalog::SEFLG_DEFAULTEPH,
+        int     $eclipseTypes = Catalog::SE_ECL_ALLTYPES_SOLAR,
+        bool    $backward = false,
+    ): array
+    {
+        $body = self::normalizeLunarOccultBody($body);
+
+        $typeError = self::lunarOccultTypeError($body, $starName, $eclipseTypes);
+        if ($typeError !== '') {
+            return self::lunarOccultWhenError($typeError);
+        }
+
+        return [
+            'rc' => SwissDate::ERR,
+            'tret' => array_fill(0, 10, 0.0),
+            'attr' => array_fill(0, 20, 0.0),
+            'dcore' => [],
+            'error' => 'lunar occultation global search is not implemented',
+        ];
+    }
+
+    public static function lunarOccultWhenGlobResult(
+        float   $tjdUt,
+        int     $body,
+        ?string $starName = null,
+        int     $flags = Catalog::SEFLG_DEFAULTEPH,
+        int     $eclipseTypes = Catalog::SE_ECL_ALLTYPES_SOLAR,
+        bool    $backward = false,
+    ): OccultationWhenResult
+    {
+        return OccultationWhenResult::fromArray(
+            self::lunarOccultWhenGlob($tjdUt, $body, $starName, $flags, $eclipseTypes, $backward)
+        );
+    }
+
+    /**
+     * Placeholder for swe_lun_occult_when_loc().
+     *
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    public static function lunarOccultWhenLoc(
+        float    $tjdUt,
+        int      $body,
+        Observer $observer,
+        ?string  $starName = null,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+    ): array
+    {
+        if (
+            $observer->altitude < Observer::MIN_GEOGRAPHIC_ALTITUDE
+            || $observer->altitude > Observer::MAX_GEOGRAPHIC_LATITUDE
+        ) {
+            return self::lunarOccultWhenError(sprintf(
+                'location for occultations must be between %.0f and %.0f m above sea',
+                Observer::MIN_GEOGRAPHIC_ALTITUDE,
+                Observer::MAX_GEOGRAPHIC_LATITUDE
+            ));
+        }
+
+        $body = self::normalizeLunarOccultBody($body);
+
+        return [
+            'rc' => SwissDate::ERR,
+            'tret' => array_fill(0, 10, 0.0),
+            'attr' => array_fill(0, 20, 0.0),
+            'dcore' => [],
+            'error' => 'lunar occultation local search is not implemented',
+        ];
+    }
+
+    public static function lunarOccultWhenLocResult(
+        float    $tjdUt,
+        int      $body,
+        Observer $observer,
+        ?string  $starName = null,
+        int      $flags = Catalog::SEFLG_DEFAULTEPH,
+        bool     $backward = false,
+    ): OccultationWhenResult
+    {
+        return OccultationWhenResult::fromArray(
+            self::lunarOccultWhenLoc($tjdUt, $body, $observer, $starName, $flags, $backward)
+        );
+    }
+
+    /**
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    private static function lunarOccultWhenError(string $error): array
+    {
+        return [
+            'rc' => SwissDate::ERR,
+            'tret' => array_fill(0, 10, 0.0),
+            'attr' => array_fill(0, 20, 0.0),
+            'dcore' => [],
+            'error' => $error,
+        ];
+    }
+
+    private static function normalizeLunarOccultBody(int $body): int
+    {
+        if ($body < 0) {
+            return Catalog::SE_SUN;
+        }
+
+        if ($body === Catalog::SE_AST_OFFSET + 134340) {
+            return Catalog::SE_PLUTO;
+        }
+
+        return $body;
+    }
+
+    private static function lunarOccultTypeError(int $body, ?string $starName, int $eclipseTypes): string
+    {
+        if ($eclipseTypes === (Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_CENTRAL)) {
+            return 'central partial eclipses do not exist';
+        }
+
+        if ($body !== Catalog::SE_SUN) {
+            $nonSolarTypes = $eclipseTypes & ~(Catalog::SE_ECL_NONCENTRAL | Catalog::SE_ECL_CENTRAL);
+
+            if (
+                $nonSolarTypes === Catalog::SE_ECL_ANNULAR
+                || $eclipseTypes === Catalog::SE_ECL_ANNULAR_TOTAL
+            ) {
+                return trim(sprintf(
+                    'annular occultations do not exist for object %d %s',
+                    $body,
+                    $starName ?? ''
+                ));
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Swiss Ephemeris compatible placeholder for swe_sol_eclipse_when_loc().
      *
      * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
