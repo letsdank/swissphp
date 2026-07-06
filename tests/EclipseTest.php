@@ -310,15 +310,18 @@ final class EclipseTest extends TestCase
         self::assertSame('lunar occultation where is not implemented', $result->result->error);
     }
 
-    public function testLunarOccultWhenGlobReturnsPlaceholderShape(): void
+    public function testLunarOccultWhenGlobFindsPlanetaryOccultation(): void
     {
         $result = Eclipse::lunarOccultWhenGlob(2460400.0, Catalog::SE_VENUS);
 
-        self::assertSame(SwissDate::ERR, $result['rc']);
-        self::assertCount(10, $result['tret']);
-        self::assertCount(20, $result['attr']);
-        self::assertSame([], $result['dcore']);
-        self::assertSame('lunar occultation global search is not implemented', $result['error']);
+        self::assertSame(Catalog::SE_ECL_CENTRAL | Catalog::SE_ECL_TOTAL, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(2460408.138703, $result['tret'][0], 1e-4);
+        self::assertEqualsWithDelta(1.0, $result['attr'][0], 1e-12);
+        self::assertEqualsWithDelta(0.005082471739026862, $result['attr'][1], 1e-12);
+        self::assertEqualsWithDelta(1.0, $result['attr'][2], 1e-12);
+        self::assertEqualsWithDelta(0.3990773344417841, $result['attr'][7], 1e-8);
+        self::assertEqualsWithDelta(1.0, $result['attr'][8], 1e-12);
     }
 
     public function testLunarOccultWhenGlobRejectsCentralPartialSearch(): void
@@ -356,9 +359,10 @@ final class EclipseTest extends TestCase
         $result = Eclipse::lunarOccultWhenGlobResult(2460400.0, Catalog::SE_VENUS);
 
         self::assertInstanceOf(OccultationWhenResult::class, $result);
-        self::assertFalse($result->isOccultation());
-        self::assertSame(0.0, $result->maximumTime());
-        self::assertSame('lunar occultation global search is not implemented', $result->result->error);
+        self::assertTrue($result->isOccultation());
+        self::assertTrue($result->isTotal());
+        self::assertEqualsWithDelta(2460408.138703, $result->maximumTime(), 1e-4);
+        self::assertSame('', $result->result->error);
     }
 
     public function testLunarOccultWhenLocReturnsPlaceholderShape(): void

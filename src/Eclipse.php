@@ -13,6 +13,22 @@ final class Eclipse
     private const RSUN = self::DSUN / 2.0;
     private const RMOON = self::DMOON / 2.0;
     private const REARTH = self::DEARTH / 2.0;
+
+    private const LUNAR_OCCULT_SEARCH_STEP_DAYS = 0.25;
+    private const LUNAR_OCCULT_SEARCH_MAX_DAYS = 740.0;
+
+    private const BODY_DIAMETERS_METERS = [
+        Catalog::SE_SUN => 1392000000.0,
+        Catalog::SE_MERCURY => 4879400.0,
+        Catalog::SE_VENUS => 12104000.0,
+        Catalog::SE_MARS => 6794000.0,
+        Catalog::SE_JUPITER => 142984000.0,
+        Catalog::SE_SATURN => 120536000.0,
+        Catalog::SE_URANUS => 51118000.0,
+        Catalog::SE_NEPTUNE => 49532000.0,
+        Catalog::SE_PLUTO => 2377000.0,
+    ];
+
     private const EARTH_OBLATENESS = 1.0 / 298.257223563;
 
     private const LUNAR_ECLIPSE_SEARCH_STEP_DAYS = 1.0;
@@ -516,17 +532,69 @@ final class Eclipse
     {
         $body = self::normalizeLunarOccultBody($body);
 
+        if ($starName !== null && trim($starName) !== '') {
+            return self::lunarOccultWhenError('fixed-star lunar occultation search is not implemented');
+        }
+
         $typeError = self::lunarOccultTypeError($body, $starName, $eclipseTypes);
         if ($typeError !== '') {
             return self::lunarOccultWhenError($typeError);
         }
 
+        $eclipseTypes = self::normalizeLunarOccultTypes($body, $eclipseTypes);
+        $direction = $backward ? -1.0 : 1.0;
+        $step = self::LUNAR_ECLIPSE_SEARCH_STEP_DAYS * $direction;
+
+        $previousTime = $tjdUt;
+        $previousMetric = self::lunarOccultGlobalMetric($previousTime, $body, $flags);
+        $currentTime = $tjdUt + $step;
+        $currentMetric = self::lunarOccultGlobalMetric($currentTime, $body, $flags);
+
+        for (
+            $elapsed = self::LUNAR_OCCULT_SEARCH_STEP_DAYS;
+            $elapsed <= self::LUNAR_OCCULT_SEARCH_MAX_DAYS;
+            $elapsed += self::LUNAR_OCCULT_SEARCH_STEP_DAYS
+        ) {
+            $nextTime = $currentTime + $step;
+            $nextMetric = self::lunarOccultGlobalMetric($nextTime, $body, $flags);
+
+            if ($currentMetric <= $previousMetric && $currentMetric <= $nextMetric) {
+                $maximum = self::lunarOccultGlobalMaximum($currentTime, $body, $flags);
+
+                if (
+                    ($backward && $maximum >= $tjdUt - 0.0001)
+                    || (!$backward && $maximum <= $tjdUt + 0.0001)
+                ) {
+                    $previousTime = $currentTime;
+                    $previousMetric = $currentMetric;
+                    $currentTime = $nextTime;
+                    $currentMetric = $nextMetric;
+                    continue;
+                }
+
+                $event = self::lunarOccultGlobalEvent($maximum, $body, $flags);
+
+                if ($event['rc'] === SwissDate::ERR) {
+                    return $event;
+                }
+
+                if ($event['rc'] !== 0 && self::lunarOccultTypeMatches($event['rc'], $eclipseTypes)) {
+                    return $event;
+                }
+            }
+
+            $previousTime = $currentTime;
+            $previousMetric = $currentMetric;
+            $currentTime = $nextTime;
+            $currentMetric = $nextMetric;
+        }
+
         return [
-            'rc' => SwissDate::ERR,
+            'rc' => 0,
             'tret' => array_fill(0, 10, 0.0),
             'attr' => array_fill(0, 20, 0.0),
-            'dcore' => [],
-            'error' => 'lunar occultation global search is not implemented',
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => 'no global lunar occultation found within search window',
         ];
     }
 
@@ -594,6 +662,125 @@ final class Eclipse
         );
     }
 
+    private static function lunarOccultGlobalMetric(float $tjdUt, int $body, int $flags): float
+    {
+        $bodies = self::lunarOccultBodies($tjdUt, $body, $flags);
+
+        if ($bodies === null) {
+            return INF;
+        }
+
+        $separation = self::angularSeparationDegrees($bodies['moon'], $bodies['body']);
+        $moonRadius = self::angularRadiusDegrees(self::DMOON, $bodies['moon'][2]);
+        $bodyRadius = self::angularRadiusDegrees(self::bodyDiameterAu($body), $bodies['body'][2]);
+        $horizontalParallax = self::angularRadiusDegrees(self::DEARTH, $bodies['moon'][2]);
+
+        return $separation - ($horizontalParallax + $moonRadius + $bodyRadius);
+    }
+
+    private static function lunarOccultGlobalMaximum(float $estimate, int $body, int $flags): float
+    {
+        $bestTime = $estimate;
+        $bestMetric = self::lunarOccultGlobalMetric($bestTime, $body, $flags);
+
+        foreach ([0.5, 0.2, 0.08, 0.03, 0.01, 0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001] as $step) {
+            do {
+                $improved = false;
+
+                foreach ([-1, 1] as $direction) {
+                    $candidateTime = $bestTime + $direction * $step;
+                    $candidateMetric = self::lunarOccultGlobalMetric($candidateTime, $body, $flags);
+
+                    if ($candidateMetric < $bestMetric) {
+                        $bestTime = $candidateTime;
+                        $bestMetric = $candidateMetric;
+                        $improved = true;
+                    }
+                }
+            } while ($improved);
+        }
+
+        return $bestTime;
+    }
+
+    /**
+     * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
+     */
+    private static function lunarOccultGlobalEvent(float $maximum, int $body, int $flags): array
+    {
+        $bodies = self::lunarOccultBodies($maximum, $body, $flags);
+
+        if ($bodies === null) {
+            return self::lunarOccultWhenError('lunar occultation search failed because body or Moon position could not be calculated');
+        }
+
+        $separation = self::angularSeparationDegrees($bodies['moon'], $bodies['body']);
+        $moonRadius = self::angularRadiusDegrees(self::DMOON, $bodies['moon'][2]);
+        $bodyRadius = self::angularRadiusDegrees(self::bodyDiameterAu($body), $bodies['body'][2]);
+        $horizontalParallax = self::angularRadiusDegrees(self::DEARTH, $bodies['moon'][2]);
+        $topocentricSeparation = max(0.0, $separation - $horizontalParallax);
+
+        if ($topocentricSeparation > $moonRadius + $bodyRadius) {
+            return [
+                'rc' => 0,
+                'tret' => array_fill(0, 10, 0.0),
+                'attr' => array_fill(0, 20, 0.0),
+                'dcore' => array_fill(0, 10, 0.0),
+                'error' => '',
+            ];
+        }
+
+        $attr = array_fill(0, 20, 0.0);
+        $attr[0] = $topocentricSeparation <= max(0.0, $moonRadius - $bodyRadius)
+            ? 1.0
+            : max(0.0, min(1.0, ($moonRadius + $bodyRadius - $topocentricSeparation) / (2.0 * $bodyRadius)));
+        $attr[1] = $moonRadius > 0.0 ? $bodyRadius / $moonRadius : 0.0;
+        $attr[2] = self::discObscuration($bodyRadius, $moonRadius, $topocentricSeparation);
+        $attr[7] = $separation;
+        $attr[8] = $attr[0];
+
+        $rc = $attr[0] >= 1.0 ? Catalog::SE_ECL_TOTAL : Catalog::SE_ECL_PARTIAL;
+        $rc |= $separation <= $horizontalParallax ? Catalog::SE_ECL_CENTRAL : Catalog::SE_ECL_NONCENTRAL;
+
+        $tret = array_fill(0, 10, 0.0);
+        $tret[0] = $maximum;
+
+        return [
+            'rc' => $rc,
+            'tret' => $tret,
+            'attr' => $attr,
+            'dcore' => array_fill(0, 10, 0.0),
+            'error' => '',
+        ];
+    }
+
+    /**
+     * @return array{moon:array<int, float>, body:array<int, float>}|null
+     */
+    private static function lunarOccultBodies(float $tjdUt, int $body, int $flags): ?array
+    {
+        $calcFlags = Catalog::normalizeEphemerisFlags($flags) | Catalog::SEFLG_EQUATORIAL;
+
+        $moon = Calculator::calcUt($tjdUt, Catalog::SE_MOON, $calcFlags);
+        $occulted = Calculator::calcUt($tjdUt, $body, $calcFlags);
+
+        if ($moon['rc'] === SwissDate::ERR || $occulted['rc'] === SwissDate::ERR) {
+            return null;
+        }
+
+        return [
+            'moon' => $moon['xx'],
+            'body' => $occulted['xx'],
+        ];
+    }
+
+    private static function bodyDiameterAu(int $body): float
+    {
+        $diameterMeters = self::BODY_DIAMETERS_METERS[$body] ?? 0.0;
+
+        return $diameterMeters / self::AUNIT_METERS;
+    }
+
     /**
      * @return array{rc:int, tret:array<int, float>, attr:array<int, float>, dcore:array<int, float>, error:string}
      */
@@ -619,6 +806,54 @@ final class Eclipse
         }
 
         return $body;
+    }
+
+    private static function normalizeLunarOccultTypes(int $body, int $eclipseTypes): int
+    {
+        if ($eclipseTypes === 0) {
+            $eclipseTypes = Catalog::SE_ECL_TOTAL | Catalog::SE_ECL_PARTIAL | Catalog::SE_ECL_NONCENTRAL | Catalog::SE_ECL_PARTIAL;
+
+            if ($body === Catalog::SE_SUN) {
+                $eclipseTypes |= Catalog::SE_ECL_ANNULAR | Catalog::SE_ECL_ANNULAR_TOTAL;
+            }
+
+            return $eclipseTypes;
+        }
+
+        if (
+            $eclipseTypes === Catalog::SE_ECL_TOTAL
+            || $eclipseTypes === Catalog::SE_ECL_ANNULAR
+            || $eclipseTypes === Catalog::SE_ECL_ANNULAR_TOTAL
+        ) {
+            return $eclipseTypes | Catalog::SE_ECL_NONCENTRAL | Catalog::SE_ECL_CENTRAL;
+        }
+
+        if ($eclipseTypes === Catalog::SE_ECL_PARTIAL) {
+            return $eclipseTypes | Catalog::SE_ECL_NONCENTRAL;
+        }
+
+        return $eclipseTypes;
+    }
+
+    private static function lunarOccultTypeMatches(int $rc, int $eclipseTypes): bool
+    {
+        if (($rc & Catalog::SE_ECL_NONCENTRAL) !== 0 && ($eclipseTypes & Catalog::SE_ECL_NONCENTRAL) === 0) {
+            return false;
+        }
+
+        if (($rc & Catalog::SE_ECL_CENTRAL) !== 0 && ($eclipseTypes & Catalog::SE_ECL_CENTRAL) === 0) {
+            return false;
+        }
+
+        if (($rc & Catalog::SE_ECL_PARTIAL) !== 0 && ($eclipseTypes & Catalog::SE_ECL_PARTIAL) === 0) {
+            return false;
+        }
+
+        if (($rc & Catalog::SE_ECL_TOTAL) !== 0 && ($eclipseTypes & Catalog::SE_ECL_TOTAL) === 0) {
+            return false;
+        }
+
+        return true;
     }
 
     private static function lunarOccultTypeError(int $body, ?string $starName, int $eclipseTypes): string
