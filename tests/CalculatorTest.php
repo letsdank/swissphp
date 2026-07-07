@@ -2569,6 +2569,20 @@ final class CalculatorTest extends TestCase
         self::assertSame($path, Calculator::ephemerisPath());
     }
 
+    public function testCalculatorCanReturnEphemerisFileData(): void
+    {
+        Calculator::setEphemerisPath(EphemerisFixtureFactory::path());
+
+        $result = Calculator::ephemerisFileData(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(Catalog::SE_MERCURY, $result['body']);
+        self::assertSame('sepl_18.se1', $result['file']);
+        self::assertEqualsWithDelta(2451540.0, $result['tfstart'], 1e-9);
+        self::assertEqualsWithDelta(2451550.0, $result['tfend'], 1e-9);
+        self::assertSame(431, $result['denum']);
+    }
+
     public function testCalcFileBackedReturnsEphemerisFilePosition(): void
     {
         Calculator::setEphemerisPath(EphemerisFixtureFactory::path());

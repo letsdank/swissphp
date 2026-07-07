@@ -179,6 +179,14 @@ final class Calculator
     }
 
     /**
+     * @return array{rc:int, body:int, type:string, file:string, path:string, tfstart:float, tfend:float, denum:int, error:string}
+     */
+    public static function ephemerisFileData(int $body, float $tjdEt): array
+    {
+        return EphemerisFiles::fileDataForBody($body, $tjdEt);
+    }
+
+    /**
      * Low-level swe_calc() style adapter backed directly by Swiss Ephemeris `.se1` files.
      *
      * This does not apply the complete Calculator::calc() apparent/geocentric correction

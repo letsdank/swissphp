@@ -66,6 +66,50 @@ final class EphemerisFilesTest extends TestCase
         self::assertSame('semo_18.se1', $result['file']);
     }
 
+    public function testFileDataForBodyReturnsEphemerisFileRange(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $result = EphemerisFiles::fileDataForBody(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(Catalog::SE_MERCURY, $result['body']);
+        self::assertSame(EphemerisFiles::TYPE_PLANET, $result['type']);
+        self::assertSame('sepl_18.se1', $result['file']);
+        self::assertFileExists($result['path']);
+        self::assertEqualsWithDelta(2451540.0, $result['tfstart'], 1e-9);
+        self::assertEqualsWithDelta(2451550.0, $result['tfend'], 1e-9);
+        self::assertSame(431, $result['denum']);
+        self::assertSame('', $result['error']);
+    }
+
+    public function testFileDataForBodyMapsAsteroidFileBodyNumbers(): void
+    {
+        EphemerisFiles::setPath($this->ephePath());
+
+        $result = EphemerisFiles::fileDataForBody(Catalog::SE_AST_OFFSET + 1, 2451545.0);
+
+        self::assertSame(Catalog::SE_OK, $result['rc']);
+        self::assertSame(Catalog::SE_AST_OFFSET + 1, $result['body']);
+        self::assertSame(EphemerisFiles::TYPE_ASTEROID, $result['type']);
+        self::assertSame('seas_18.se1', $result['file']);
+        self::assertSame(431, $result['denum']);
+    }
+
+    public function testFileDataForBodyReturnsErrorWhenFileIsMissing(): void
+    {
+        EphemerisFiles::setPath('/tmp/swissphp-missing-ephe-path');
+
+        $result = EphemerisFiles::fileDataForBody(Catalog::SE_MERCURY, 2451545.0);
+
+        self::assertSame(Catalog::SE_ERR, $result['rc']);
+        self::assertSame('sepl_18.se1', $result['file']);
+        self::assertSame(0.0, $result['tfstart']);
+        self::assertSame(0.0, $result['tfend']);
+        self::assertSame(0, $result['denum']);
+        self::assertSame('ephemeris file not found', $result['error']);
+    }
+
     public function testResolveReturnsErrorWhenPathIsMissing(): void
     {
         EphemerisFiles::setPath('/tmp/swissphp-missing-ephe-path');

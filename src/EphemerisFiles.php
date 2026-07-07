@@ -156,6 +156,72 @@ final class EphemerisFiles
     }
 
     /**
+     * Returns file range metadata for the ephemeris file that contains a body/date.
+     *
+     * This is a stateless equivalent of the useful part of swe_get_current_file_data().
+     *
+     * @return array{rc:int, body:int, type:string, file:string, path:string, tfstart:float, tfend:float, denum:int, error:string}
+     */
+    public static function fileDataForBody(int $body, float $tjdEt): array
+    {
+        $resolved = self::resolveForBody($body, $tjdEt);
+
+        if ($resolved['rc'] !== Catalog::SE_OK) {
+            return self::fileDataError(
+                $body,
+                $resolved['type'],
+                $resolved['file'],
+                $resolved['path'],
+                $resolved['error'],
+            );
+        }
+
+        $metadata = self::metadata($resolved['path']);
+
+        if ($metadata['rc'] !== Catalog::SE_OK) {
+            return self::fileDataError(
+                $body,
+                $resolved['type'],
+                $resolved['file'],
+                $resolved['path'],
+                $resolved['error'],
+            );
+        }
+
+        if (!self::containsDate($metadata, $tjdEt)) {
+            return self::fileDataError(
+                $body,
+                $resolved['type'],
+                $resolved['file'],
+                $resolved['path'],
+                'julian day is outside ephemeris file range'
+            );
+        }
+
+        if (!self::containsPlanet($metadata, self::fileBodyNumber($body))) {
+            return self::fileDataError(
+                $body,
+                $resolved['type'],
+                $resolved['file'],
+                $resolved['path'],
+                'ephemeris body descriptor not found'
+            );
+        }
+
+        return [
+            'rc' => Catalog::SE_OK,
+            'body' => $body,
+            'type' => $resolved['type'],
+            'file' => $resolved['file'],
+            'path' => $resolved['path'],
+            'tfstart' => (float)$metadata['tfstart'],
+            'tfend' => (float)$metadata['tfend'],
+            'denum' => (int)$metadata['denum'],
+            'error' => '',
+        ];
+    }
+
+    /**
      * Evaluates a body directly from Swiss Ephemeris `.se1` files.
      *
      * This method is the highest-level API in this class. It resolves the file
@@ -1708,6 +1774,24 @@ final class EphemerisFiles
             'vector' => [],
             'metadata' => null,
             'descriptor' => null,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @return array{rc:int, body:int, type:string, file:string, path:string, tfstart:float, tfend:float, denum:int, error:string}
+     */
+    private static function fileDataError(int $body, string $type, string $file, string $path, string $error): array
+    {
+        return [
+            'rc' => Catalog::SE_ERR,
+            'body' => $body,
+            'type' => $type,
+            'file' => $file,
+            'path' => $path,
+            'tfstart' => 0.0,
+            'tfend' => 0.0,
+            'denum' => 0,
             'error' => $error,
         ];
     }
