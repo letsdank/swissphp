@@ -7,6 +7,7 @@ namespace SwissEph\Tests;
 use PHPUnit\Framework\TestCase;
 use SwissEph\Angle;
 use SwissEph\Ayanamsa;
+use SwissEph\CalculationResult;
 use SwissEph\Calculator;
 use SwissEph\Catalog;
 use SwissEph\Coordinates;
@@ -16,6 +17,7 @@ use SwissEph\EarthPosition;
 use SwissEph\Eclipse;
 use SwissEph\EclipseResult;
 use SwissEph\EclipseWhenResult;
+use SwissEph\EphemerisFiles;
 use SwissEph\MeanApogee;
 use SwissEph\MeanNode;
 use SwissEph\MoshierMoon;
@@ -30,11 +32,17 @@ use SwissEph\SolarEclipseResult;
 use SwissEph\SolarEclipseWhenResult;
 use SwissEph\SolarPosition;
 use SwissEph\SwissDate;
+use SwissEph\Tests\Support\EphemerisFixtureFactory;
 use SwissEph\TrueNode;
 use SwissEph\UtcTime;
 
 final class CalculatorTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        EphemerisFiles::setPath('');
+    }
+
     public function testCalculatorJuldayDelegatesToSwissDate(): void
     {
         self::assertSame(
@@ -2550,6 +2558,103 @@ final class CalculatorTest extends TestCase
 
         self::assertEqualsWithDelta(251.818034823137253, $result['xx'][0], 1e-12);
         self::assertEqualsWithDelta(0.826077889936902, $result['xx'][3], 1e-12);
+    }
+
+    public function testCalculatorCanConfigureEphemerisFilePath(): void
+    {
+        $path = EphemerisFixtureFactory::path();
+
+        Calculator::setEphemerisPath($path);
+
+        self::assertSame($path, Calculator::ephemerisPath());
+    }
+
+    public function testCalcFileBackedReturnsEphemerisFilePosition(): void
+    {
+        Calculator::setEphemerisPath(EphemerisFixtureFactory::path());
+
+        $result = Calculator::calcFileBacked(
+            2451545.0,
+            Catalog::SE_MERCURY,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+
+        self::assertSame(Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED, $result['rc']);
+        self::assertSame('', $result['error']);
+        self::assertEqualsWithDelta(63.88608736970928, $result['xx'][0], 1e-12);
+        self::assertEqualsWithDelta(7.52222639092815, $result['xx'][1], 1e-12);
+        self::assertEqualsWithDelta(0.11458184847522751, $result['xx'][2], 1e-15);
+        self::assertEqualsWithDelta(-1.7938232271609784, $result['xx'][3], 1e-12);
+    }
+
+    public function testCalcFileBackedSupportsCartesianOutput(): void
+    {
+        Calculator::setEphemerisPath(EphemerisFixtureFactory::path());
+
+        $result = Calculator::calcFileBacked(
+            2451545.0,
+            Catalog::SE_MERCURY,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED | Catalog::SEFLG_XYZ
+        );
+
+        self::assertSame(Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED | Catalog::SEFLG_XYZ, $result['rc']);
+        self::assertEqualsWithDelta(0.05, $result['xx'][0], 1e-15);
+        self::assertEqualsWithDelta(0.102, $result['xx'][1], 1e-15);
+        self::assertEqualsWithDelta(0.015, $result['xx'][2], 1e-15);
+        self::assertEqualsWithDelta(0.002, $result['xx'][3], 1e-15);
+    }
+
+    public function testCalcFileBackedUtConvertsUtToEt(): void
+    {
+        Calculator::setEphemerisPath(EphemerisFixtureFactory::path());
+
+        $tjdUt = 2451545.0 - DeltaT::deltatEx(2451545.0, Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED);
+
+        $ut = Calculator::calcFileBackedUt(
+            $tjdUt,
+            Catalog::SE_MERCURY,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+        $et = Calculator::calcFileBacked(
+            2451545.0,
+            Catalog::SE_MERCURY,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+
+        self::assertSame(Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED, $ut['rc']);
+        self::assertEqualsWithDelta($et['xx'][0], $ut['xx'][0], 1e-12);
+        self::assertEqualsWithDelta($et['xx'][1], $ut['xx'][1], 1e-12);
+        self::assertEqualsWithDelta($et['xx'][2], $ut['xx'][2], 1e-12);
+    }
+
+    public function testCalcFileBackedResultReturnsCalculationResult(): void
+    {
+        Calculator::setEphemerisPath(EphemerisFixtureFactory::path());
+
+        $result = Calculator::calcFileBackedResult(
+            2451545.0,
+            Catalog::SE_MERCURY,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+
+        self::assertInstanceOf(CalculationResult::class, $result);
+        self::assertSame(Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED, $result->rc);
+        self::assertEqualsWithDelta(63.88608736970928, $result->longitude(), 1e-12);
+    }
+
+    public function testCalcFileBackedKeepsEphemerisErrors(): void
+    {
+        Calculator::setEphemerisPath(EphemerisFixtureFactory::path());
+
+        $result = Calculator::calcFileBacked(
+            2451545.0,
+            Catalog::SE_VENUS,
+            Catalog::SEFLG_SWIEPH | Catalog::SEFLG_SPEED
+        );
+
+        self::assertSame(SwissDate::ERR, $result['rc']);
+        self::assertSame([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], $result['xx']);
+        self::assertSame('ephemeris body descriptor not found', $result['error']);
     }
 
     public function testPhenoDelegatesToPhenomena(): void

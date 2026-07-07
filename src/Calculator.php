@@ -168,6 +168,86 @@ final class Calculator
         );
     }
 
+    public static function setEphemerisPath(string $path): void
+    {
+        EphemerisFiles::setPath($path);
+    }
+
+    public static function ephemerisPath(): string
+    {
+        return EphemerisFiles::path();
+    }
+
+    /**
+     * Low-level swe_calc() style adapter backed directly by Swiss Ephemeris `.se1` files.
+     *
+     * This does not apply the complete Calculator::calc() apparent/geocentric correction
+     * pipeline. It exposes vectors evaluated from ephemeris file Chebyshev segments.
+     *
+     * @return array{rc:int, xx:array<int, float>, error:string}
+     */
+    public static function calcFileBacked(
+        float $tjdEt,
+        int   $ipl,
+        int   $iflag = Catalog::SEFLG_DEFAULTEPH
+    ): array
+    {
+        $iflag = Catalog::normalizeEphemerisFlags($iflag);
+        $iflag = self::normalizeCalculationFlags($iflag);
+
+        $result = SwissEphemerisPosition::calculate($ipl, $tjdEt, $iflag);
+
+        if ($result['rc'] !== Catalog::SE_OK) {
+            return [
+                'rc' => SwissDate::ERR,
+                'xx' => $result['xx'],
+                'error' => $result['error'],
+            ];
+        }
+
+        return [
+            'rc' => $iflag,
+            'xx' => $result['xx'],
+            'error' => '',
+        ];
+    }
+
+    /**
+     * Low-level swe_calc_ut() style adapter backed directly by Swiss Ephemeris `.se1` files.
+     *
+     * @return array{rc:int, xx:array<int, float>, error:string}
+     */
+    public static function calcFileBackedUt(
+        float $tjdUt,
+        int   $ipl,
+        int   $iflag = Catalog::SEFLG_DEFAULTEPH
+    ): array
+    {
+        return self::calcFileBacked(
+            $tjdUt + DeltaT::deltatEx($tjdUt, $iflag),
+            $ipl,
+            $iflag
+        );
+    }
+
+    public static function calcFileBackedResult(
+        float $tjdEt,
+        int   $ipl,
+        int   $iflag = Catalog::SEFLG_DEFAULTEPH
+    ): CalculationResult
+    {
+        return CalculationResult::fromArray(self::calcFileBacked($tjdEt, $ipl, $iflag));
+    }
+
+    public static function calcFileBackedUtResult(
+        float $tjdUt,
+        int   $ipl,
+        int   $iflag = Catalog::SEFLG_DEFAULTEPH
+    ): CalculationResult
+    {
+        return CalculationResult::fromArray(self::calcFileBackedUt($tjdUt, $ipl, $iflag));
+    }
+
     /**
      * Geocentric subset of swe_lun_eclipse_how().
      *
